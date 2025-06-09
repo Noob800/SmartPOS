@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import { apiRequest } from "@/lib/queryClient";
@@ -58,6 +58,22 @@ const LoginModal = () => {
     ['clear', '0', 'login']
   ];
 
+  // Add keyboard support
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key >= '0' && e.key <= '9') {
+        handlePinInput(e.key);
+      } else if (e.key === 'Backspace') {
+        handleClear();
+      } else if (e.key === 'Enter') {
+        handleLogin();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [pin, handlePinInput, handleClear, handleLogin]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <Card className="w-96 shadow-2xl">
@@ -67,7 +83,7 @@ const LoginModal = () => {
             <h2 className="text-2xl font-bold text-gray-800">MiniMart POS</h2>
             <p className="text-gray-600 mt-2">Enter your PIN to continue</p>
           </div>
-          
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               User PIN
@@ -81,7 +97,7 @@ const LoginModal = () => {
               maxLength={4}
             />
           </div>
-          
+
           <div className="grid grid-cols-3 gap-3 mb-6">
             {numbers.flat().map((item, index) => {
               if (item === 'clear') {
@@ -125,7 +141,7 @@ const LoginModal = () => {
               }
             })}
           </div>
-          
+
           <div className="text-center">
             <p className="text-sm text-gray-500">
               Demo PIN: 1234 (Admin) or 0000 (Cashier)

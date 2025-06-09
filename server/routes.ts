@@ -20,14 +20,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { pin } = req.body;
       const user = await storage.getUserByPin(pin);
-      
+
       if (!user) {
         return res.status(401).json({ message: "Invalid PIN" });
       }
 
       // Update last login
       await storage.updateUser(user.id, { lastLogin: new Date() });
-      
+
       res.json({ user: { id: user.id, name: user.name, role: user.role } });
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -59,11 +59,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updates = req.body;
       const user = await storage.updateUser(id, updates);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -75,13 +75,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { search } = req.query;
       let products;
-      
+
       if (search) {
         products = await storage.searchProducts(search as string);
       } else {
         products = await storage.getAllProducts();
       }
-      
+
       res.json(products);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -92,11 +92,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { barcode } = req.params;
       const product = await storage.getProductByBarcode(barcode);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -118,11 +118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const updates = req.body;
       const product = await storage.updateProduct(id, updates);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -133,11 +133,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteProduct(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json({ message: "Product deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -149,10 +149,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { sale, items } = req.body;
       const saleData = insertSaleSchema.parse(sale);
-      
+
       // Create the sale
       const createdSale = await storage.createSale(saleData);
-      
+
       // Create sale items and update stock
       for (const item of items) {
         const saleItemData = insertSaleItemSchema.parse({
@@ -160,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           saleId: createdSale.id
         });
         await storage.createSaleItem(saleItemData);
-        
+
         // Update product stock
         const product = await storage.getProduct(item.productId);
         if (product) {
@@ -169,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       res.json(createdSale);
     } catch (error) {
       res.status(400).json({ message: "Invalid sale data" });
@@ -180,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { startDate, endDate } = req.query;
       let sales;
-      
+
       if (startDate && endDate) {
         sales = await storage.getSalesByDateRange(
           new Date(startDate as string),
@@ -189,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         sales = await storage.getAllSales();
       }
-      
+
       res.json(sales);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -211,14 +211,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const adjustmentData = insertStockAdjustmentSchema.parse(req.body);
       const adjustment = await storage.createStockAdjustment(adjustmentData);
-      
+
       // Update product stock
       const product = await storage.getProduct(adjustmentData.productId);
       if (product) {
         const newStock = product.stock + adjustmentData.quantity;
         await storage.updateProduct(product.id, { stock: Math.max(0, newStock) });
       }
-      
+
       res.json(adjustment);
     } catch (error) {
       res.status(400).json({ message: "Invalid adjustment data" });
@@ -257,13 +257,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Environment configuration check
+  app.get("/api/config/mpesa", async (req, res) => {
+    try {
+      const isConfigured = !!(
+        process.env.MPESA_CONSUMER_KEY &&
+        process.env.MPESA_CONSUMER_SECRET &&
+        process.env.MPESA_BUSINESS_SHORT_CODE &&
+        process.env.MPESA_PASSKEY
+      );
+
+      res.json({
+        configured: isConfigured,
+        environment: process.env.MPESA_ENVIRONMENT || 'sandbox',
+        businessShortCode: process.env.MPESA_BUSINESS_SHORT_CODE || ''
+      });
+    } catch (error) {
+      console.error("Failed to check M-Pesa configuration:", error);
+      res.status(500).json({ error: "Failed to check configuration" });
+    }
+  });
+
   // Payment processing routes
   app.post("/api/payments/mpesa", async (req, res) => {
     try {
       const { phoneNumber, amount, accountReference = "POS-Sale", transactionDesc = "POS Payment" } = req.body;
-      
+
       const { mpesaService } = await import("./mpesa");
-      
+
       if (!mpesaService.isConfigured()) {
         // Fallback to simulation if M-Pesa not configured
         setTimeout(() => {
@@ -311,9 +332,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/payments/mpesa/status", async (req, res) => {
     try {
       const { checkoutRequestID } = req.body;
-      
+
       const { mpesaService } = await import("./mpesa");
-      
+
       if (!mpesaService.isConfigured()) {
         res.json({
           success: true,
@@ -324,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const response = await mpesaService.querySTKStatus(checkoutRequestID);
-      
+
       res.json({
         success: true,
         status: response.ResultCode === "0" ? "completed" : "failed",
@@ -345,10 +366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { mpesaService } = await import("./mpesa");
       const callbackResult = mpesaService.processCallback(req.body);
-      
+
       // Here you would update your database with the payment result
       console.log("M-Pesa callback received:", callbackResult);
-      
+
       // Always respond with success to acknowledge receipt
       res.json({ ResultCode: 0, ResultDesc: "Success" });
     } catch (error) {
@@ -363,15 +384,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { startDate, endDate } = req.query;
       const start = startDate ? new Date(startDate as string) : new Date();
       const end = endDate ? new Date(endDate as string) : new Date();
-      
+
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      
+
       const sales = await storage.getSalesByDateRange(start, end);
-      
+
       const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.total), 0);
       const totalTransactions = sales.length;
-      
+
       res.json({
         totalSales,
         totalTransactions,

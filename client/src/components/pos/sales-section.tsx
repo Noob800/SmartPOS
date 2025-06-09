@@ -16,7 +16,7 @@ const SalesSection = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-  const { currentUser, setShowPaymentModal } = usePOSStore();
+  const { currentUser, setShowPaymentModal, setPOSCart } = usePOSStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -121,17 +121,14 @@ const SalesSection = () => {
   const total = subtotal + tax;
 
   const handlePayment = (method: string) => {
-    if (cart.length === 0) {
-      toast({
-        title: "Empty Cart",
-        description: "Please add items to cart before processing payment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    setPOSCart(cart);
     setShowPaymentModal(true);
   };
+
+  // Sync cart with POS store
+  useEffect(() => {
+    setPOSCart(cart);
+  }, [cart, setPOSCart]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -206,7 +203,7 @@ const SalesSection = () => {
               </div>
             </div>
           </CardHeader>
-          
+
           <CardContent>
             {cart.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -223,7 +220,7 @@ const SalesSection = () => {
                       <p className="text-sm text-gray-500">SKU: {item.product.sku}</p>
                       <p className="text-sm font-medium">KSH {item.unitPrice.toFixed(2)}</p>
                     </div>
-                    
+
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-2">
                         <Button
@@ -242,11 +239,11 @@ const SalesSection = () => {
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
-                      
+
                       <div className="text-right">
                         <p className="font-medium">KSH {item.total.toFixed(2)}</p>
                       </div>
-                      
+
                       <Button
                         variant="ghost"
                         size="sm"

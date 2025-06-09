@@ -4,16 +4,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertProductSchema, type Product, type InsertProduct } from "@shared/schema";
+import { BarcodeScanner } from "@/components/ui/barcode-scanner";
+import { Plus, Edit, Trash2, Package, Camera, Barcode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Download, Edit, Trash2, Package } from "lucide-react";
 
 const InventorySection = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,7 +16,7 @@ const InventorySection = () => {
   const [stockFilter, setStockFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,14 +119,14 @@ const InventorySection = () => {
   };
 
   const categories = [...new Set(products.map(p => p.category))];
-  
+
   const filteredProducts = products.filter(product => {
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     const matchesStock = stockFilter === "all" ||
       (stockFilter === "in-stock" && product.stock > product.minStock) ||
       (stockFilter === "low-stock" && product.stock <= product.minStock && product.stock > 0) ||
       (stockFilter === "out-of-stock" && product.stock === 0);
-    
+
     return matchesCategory && matchesStock;
   });
 
@@ -183,6 +178,17 @@ const InventorySection = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+
+  const handleBarcodeScanned = (barcode: string) => {
+    setShowBarcodeScanner(false);
+    form.setValue("barcode", barcode);
+    toast({
+      title: "Barcode Scanned",
+      description: `Barcode ${barcode} has been added to the product.`,
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -219,7 +225,7 @@ const InventorySection = () => {
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -234,7 +240,7 @@ const InventorySection = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="barcode"
@@ -242,7 +248,20 @@ const InventorySection = () => {
                       <FormItem>
                         <FormLabel>Barcode</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Barcode" />
+                          <div className="flex space-x-2">
+                            <Input
+                              {...field}
+                              placeholder="Barcode"
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowBarcodeScanner(true)}
+                            >
+                              <Camera className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -278,7 +297,7 @@ const InventorySection = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="costPrice"
@@ -308,7 +327,7 @@ const InventorySection = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="minStock"
@@ -332,8 +351,8 @@ const InventorySection = () => {
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createProductMutation.isPending || updateProductMutation.isPending}
                   >
                     {editingProduct ? "Update" : "Create"} Product
@@ -358,7 +377,7 @@ const InventorySection = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="All Categories" />
@@ -370,7 +389,7 @@ const InventorySection = () => {
                 ))}
               </SelectContent>
             </Select>
-            
+
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="All Stock Levels" />
@@ -382,7 +401,7 @@ const InventorySection = () => {
                 <SelectItem value="out-of-stock">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Button variant="outline" onClick={exportToCSV}>
               <Download className="w-4 h-4 mr-2" />
               Export CSV
@@ -491,6 +510,13 @@ const InventorySection = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScanned}
+      />
     </div>
   );
 };

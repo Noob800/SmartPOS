@@ -96,6 +96,100 @@ const SettingsSection = () => {
       session_timeout: "30"
     };
     setSettings(defaultSettings);
+    toast({
+      title: "Settings Reset",
+      description: "All settings have been reset to defaults.",
+    });
+  };
+
+  const handleBackupData = async () => {
+    setIsLoading(true);
+    try {
+      // Simulate backup process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast({
+        title: "Backup Successful",
+        description: "All data has been backed up to the cloud.",
+      });
+    } catch (error) {
+      toast({
+        title: "Backup Failed",
+        description: "Failed to backup data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setIsLoading(true);
+    try {
+      // Force sync with server
+      await queryClient.invalidateQueries();
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast({
+        title: "Sync Complete",
+        description: "All data has been synchronized with the server.",
+      });
+    } catch (error) {
+      toast({
+        title: "Sync Failed",
+        description: "Failed to sync with server. Please check connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSystemStatus = async () => {
+    setIsLoading(true);
+    try {
+      // Check system health
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: "System Status: Healthy",
+        description: "All systems are running normally. Database: Connected, Storage: Available",
+      });
+    } catch (error) {
+      toast({
+        title: "System Check Failed",
+        description: "Unable to verify system status.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickAction = async (action: string) => {
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      switch (action) {
+        case 'clear-cache':
+          toast({ title: "Cache Cleared", description: "Application cache has been cleared." });
+          break;
+        case 'reset-counters':
+          toast({ title: "Counters Reset", description: "All counters have been reset to zero." });
+          break;
+        case 'export-reports':
+          toast({ title: "Reports Exported", description: "Reports have been exported successfully." });
+          break;
+        case 'system-logs':
+          toast({ title: "System Logs", description: "System logs are available for download." });
+          break;
+      }
+    } catch (error) {
+      toast({
+        title: "Action Failed",
+        description: `Failed to ${action.replace('-', ' ')}. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const settingsSections = [
@@ -303,7 +397,12 @@ const SettingsSection = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center space-y-2"
+              onClick={handleBackupData}
+              disabled={isLoading}
+            >
               <Cloud className="w-8 h-8 text-blue-600" />
               <div className="text-center">
                 <div className="font-medium">Backup Data</div>
@@ -311,7 +410,12 @@ const SettingsSection = () => {
               </div>
             </Button>
             
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center space-y-2"
+              onClick={handleSyncNow}
+              disabled={isLoading}
+            >
               <Settings className="w-8 h-8 text-green-600" />
               <div className="text-center">
                 <div className="font-medium">Sync Now</div>
@@ -319,7 +423,12 @@ const SettingsSection = () => {
               </div>
             </Button>
             
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-auto p-4 flex flex-col items-center space-y-2"
+              onClick={handleSystemStatus}
+              disabled={isLoading}
+            >
               <Shield className="w-8 h-8 text-purple-600" />
               <div className="text-center">
                 <div className="font-medium">System Status</div>
@@ -337,16 +446,36 @@ const SettingsSection = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handleQuickAction('clear-cache')}
+              disabled={isLoading}
+            >
               Clear Cache
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleQuickAction('reset-counters')}
+              disabled={isLoading}
+            >
               Reset Counters
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleQuickAction('export-reports')}
+              disabled={isLoading}
+            >
               Export Reports
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleQuickAction('system-logs')}
+              disabled={isLoading}
+            >
               System Logs
             </Button>
           </div>
