@@ -1,14 +1,33 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
-import { Plus, Edit, Trash2, Package, Camera, Barcode } from "lucide-react";
+import { Plus, Edit, Trash2, Package, Camera, Barcode, Search, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Product, InsertProduct } from "@shared/schema";
+
+const insertProductSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  sku: z.string().min(1, "SKU is required"),
+  barcode: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  price: z.string().min(1, "Price is required"),
+  costPrice: z.string().min(1, "Cost price is required"),
+  stock: z.number().min(0, "Stock cannot be negative"),
+  minStock: z.number().min(0, "Minimum stock cannot be negative"),
+  isActive: z.boolean().default(true),
+});
 
 const InventorySection = () => {
   const [searchQuery, setSearchQuery] = useState("");

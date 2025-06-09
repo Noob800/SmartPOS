@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import LoginModal from "@/components/pos/login-modal";
@@ -29,7 +28,8 @@ import {
 const POSDashboard = () => {
   const [activeSection, setActiveSection] = useState("sales");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
+  const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
+
   const { 
     currentUser, 
     logout, 
@@ -211,7 +211,7 @@ const POSDashboard = () => {
           {navigationItems.map((item) => {
             const isDisabled = item.requiresAdmin && !isAdmin;
             const isActive = activeSection === item.id;
-            
+
             return (
               <Button
                 key={item.id}

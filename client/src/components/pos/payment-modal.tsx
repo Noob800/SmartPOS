@@ -44,7 +44,7 @@ const PaymentModal = () => {
         addPendingSale(saleData);
         return { id: Date.now(), ...saleData };
       }
-      
+
       const response = await apiRequest("POST", "/api/sales", saleData);
       return response.json();
     },
@@ -54,7 +54,7 @@ const PaymentModal = () => {
       setShowReceiptModal(true);
       clearCart();
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
-      
+
       toast({
         title: "Payment Successful",
         description: `Transaction completed successfully${!isOnline ? " (Saved offline)" : ""}`,
@@ -76,7 +76,7 @@ const PaymentModal = () => {
         // Simulate M-Pesa when offline
         return { success: true, mpesaRef: `OFFLINE${Date.now()}` };
       }
-      
+
       const response = await apiRequest("POST", "/api/payments/mpesa", { phoneNumber, amount });
       return response.json();
     },
@@ -138,12 +138,12 @@ const PaymentModal = () => {
           setIsProcessing(false);
           return;
         }
-        
+
         // Simulate STK push delay
         setTimeout(() => {
           mpesaPaymentMutation.mutate({ phoneNumber, amount: total });
         }, 2000);
-        
+
       } else if (method === "cash") {
         const cashAmountNum = parseFloat(cashAmount);
         if (cashAmountNum < total) {
@@ -156,10 +156,10 @@ const PaymentModal = () => {
           setIsProcessing(false);
           return;
         }
-        
+
         const saleData = createSaleData("cash");
         processSaleMutation.mutate(saleData);
-        
+
       } else if (method === "credit") {
         const saleData = createSaleData("credit");
         processSaleMutation.mutate(saleData);
@@ -237,7 +237,7 @@ const PaymentModal = () => {
           {!selectedMethod && paymentStatus === "idle" && (
             <div className="space-y-3">
               <h3 className="font-medium text-gray-800">Select Payment Method</h3>
-              
+
               <Button
                 className="w-full h-16 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-3"
                 onClick={() => setSelectedMethod("cash")}
@@ -295,7 +295,7 @@ const PaymentModal = () => {
                   </p>
                 )}
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button variant="outline" onClick={() => setSelectedMethod(null)}>
                   Back
@@ -329,7 +329,7 @@ const PaymentModal = () => {
                   Enter number in format: 254XXXXXXXXX
                 </p>
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button variant="outline" onClick={() => setSelectedMethod(null)}>
                   Back
@@ -355,7 +355,7 @@ const PaymentModal = () => {
                   This will record the sale on credit
                 </p>
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button variant="outline" onClick={() => setSelectedMethod(null)}>
                   Back
