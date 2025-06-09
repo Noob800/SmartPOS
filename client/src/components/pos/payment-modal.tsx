@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Smartphone, CreditCard, DollarSign, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -50,10 +50,14 @@ const PaymentModal = () => {
     },
     onSuccess: (sale) => {
       setLastSale(sale);
-      setShowPaymentModal(false);
-      setShowReceiptModal(true);
       clearCart();
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+
+      // Close payment modal first, then open receipt modal with a small delay
+      setShowPaymentModal(false);
+      setTimeout(() => {
+        setShowReceiptModal(true);
+      }, 100);
 
       toast({
         title: "Payment Successful",
@@ -213,6 +217,9 @@ const PaymentModal = () => {
               </Button>
             )}
           </DialogTitle>
+          <DialogDescription>
+            Complete the transaction by selecting a payment method
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
