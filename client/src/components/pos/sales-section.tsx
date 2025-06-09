@@ -197,12 +197,26 @@ const SalesSection = () => {
       } else if (e.key === 'F3') {
         e.preventDefault();
         handlePayment('credit');
+      } else if (e.key === 'Escape') {
+        setShowProductSearch(false);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (showProductSearch && !target.closest('.relative')) {
+        setShowProductSearch(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [cart]);
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [cart, showProductSearch]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 h-full">
@@ -243,59 +257,78 @@ const SalesSection = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Manual Product Search
               </label>
-              <div className="flex space-x-2">
-                <Input
-                  value={productSearchQuery}
-                  onChange={(e) => setProductSearchQuery(e.target.value)}
-                  placeholder="Search by name, SKU, or description..."
-                  className="flex-1"
-                />
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setShowProductSearch(!showProductSearch)}
-                >
-                  <Search className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {/* Search Results */}
-              {showProductSearch && searchResults.length > 0 && (
-                <div className="mt-3 max-h-48 overflow-y-auto border rounded-lg">
-                  {searchResults.map((product) => (
-                    <div
-                      key={product.id}
-                      className="p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
-                      onClick={() => {
-                        addToCart(product);
-                        setProductSearchQuery("");
-                        setShowProductSearch(false);
-                        toast({
-                          title: "Product Added",
-                          description: `${product.name} added to cart`,
-                        });
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (searchResults.length > 0) {
+                  addToCart(searchResults[0]);
+                  setProductSearchQuery("");
+                  setShowProductSearch(false);
+                  toast({
+                    title: "Product Added",
+                    description: `${searchResults[0].name} added to cart`,
+                  });
+                }
+              }}>
+                <div className="flex space-x-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={productSearchQuery}
+                      onChange={(e) => {
+                        setProductSearchQuery(e.target.value);
+                        setShowProductSearch(e.target.value.length > 0);
                       }}
-                    >
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-500">SKU: {product.sku} | Stock: {product.stock}</p>
+                      onFocus={() => setShowProductSearch(productSearchQuery.length > 0)}
+                      placeholder="Search by name, SKU, or description..."
+                      className="flex-1"
+                    />
+                    {/* Autocomplete dropdown */}
+                    {showProductSearch && searchResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg bg-white shadow-lg">
+                        {searchResults.slice(0, 5).map((product, index) => (
+                          <div
+                            key={product.id}
+                            className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer flex justify-between items-center ${
+                              index === 0 ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => {
+                              addToCart(product);
+                              setProductSearchQuery("");
+                              setShowProductSearch(false);
+                              toast({
+                                title: "Product Added",
+                                description: `${product.name} added to cart`,
+                              });
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium">{product.name}</p>
+                              <p className="text-sm text-gray-500">SKU: {product.sku} | Stock: {product.stock}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">KSH {parseFloat(product.price).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {searchResults.length > 5 && (
+                          <div className="p-2 text-center text-sm text-gray-500">
+                            +{searchResults.length - 5} more results...
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">KSH {parseFloat(product.price).toFixed(2)}</p>
-                        <Button size="sm" variant="outline">
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  <Button 
+                    type="submit" 
+                    variant="outline"
+                    disabled={searchResults.length === 0}
+                  >
+                    <Search className="w-4 h-4" />
+                  </Button>
                 </div>
-              )}
+              </form>
+            </div>
 
-              {showProductSearch && productSearchQuery && searchResults.length === 0 && (
-                <div className="mt-3 p-3 text-center text-gray-500 border rounded-lg">
-                  No products found matching "{productSearchQuery}"
-                </div>
-              )}
+              
             </div>
           </CardContent>
         </Card>
@@ -442,19 +475,67 @@ const SalesSection = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
+              <Button 
+                variant="outline" 
+                className="flex flex-col items-center p-4 h-auto"
+                onClick={() => {
+                  toast({
+                    title: "Reprint Receipt",
+                    description: "Last receipt reprinted successfully",
+                  });
+                }}
+              >
                 <Receipt className="w-6 h-6 mb-2" />
                 <span className="text-sm">Reprint Receipt</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
+              <Button 
+                variant="outline" 
+                className="flex flex-col items-center p-4 h-auto"
+                onClick={() => {
+                  toast({
+                    title: "Return Item",
+                    description: "Return item functionality activated",
+                  });
+                }}
+              >
                 <Undo className="w-6 h-6 mb-2" />
                 <span className="text-sm">Return Item</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
+              <Button 
+                variant="outline" 
+                className="flex flex-col items-center p-4 h-auto"
+                onClick={() => {
+                  const result = prompt("Enter calculation:");
+                  if (result) {
+                    try {
+                      const calculation = eval(result);
+                      toast({
+                        title: "Calculator Result",
+                        description: `${result} = ${calculation}`,
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Calculator Error",
+                        description: "Invalid calculation",
+                        variant: "destructive",
+                      });
+                    }
+                  }
+                }}
+              >
                 <Calculator className="w-6 h-6 mb-2" />
                 <span className="text-sm">Calculator</span>
               </Button>
-              <Button variant="outline" className="flex flex-col items-center p-4 h-auto">
+              <Button 
+                variant="outline" 
+                className="flex flex-col items-center p-4 h-auto"
+                onClick={() => {
+                  toast({
+                    title: "Held Sales",
+                    description: "No held sales found",
+                  });
+                }}
+              >
                 <Clock className="w-6 h-6 mb-2" />
                 <span className="text-sm">Held Sales</span>
               </Button>

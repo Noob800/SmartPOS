@@ -240,7 +240,10 @@ const PaymentModal = () => {
 
               <Button
                 className="w-full h-16 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-3"
-                onClick={() => setSelectedMethod("cash")}
+                onClick={() => {
+                  setCashAmount(total.toFixed(2));
+                  handlePayment("cash");
+                }}
               >
                 <DollarSign className="w-6 h-6" />
                 <div className="text-left">
@@ -263,7 +266,7 @@ const PaymentModal = () => {
 
               <Button
                 className="w-full h-16 bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center space-x-3"
-                onClick={() => setSelectedMethod("credit")}
+                onClick={() => handlePayment("credit")}
               >
                 <CreditCard className="w-6 h-6" />
                 <div className="text-left">
