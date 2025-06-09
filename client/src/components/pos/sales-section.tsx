@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Product, CartItem } from "@shared/schema";
-import { Barcode, ShoppingCart, Minus, Plus, Trash2, Pause, X, Calculator, Clock, Receipt, Undo } from "lucide-react";
+import { Barcode, ShoppingCart, Minus, Plus, Trash2, Pause, X, Calculator, Clock, Receipt, Undo, Camera } from "lucide-react";
+import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 
 const SalesSection = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const { currentUser, setShowPaymentModal } = usePOSStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -45,6 +47,11 @@ const SalesSection = () => {
     if (barcodeInput.trim()) {
       productLookupMutation.mutate(barcodeInput.trim());
     }
+  };
+
+  const handleCameraScan = (barcode: string) => {
+    setShowBarcodeScanner(false);
+    productLookupMutation.mutate(barcode);
   };
 
   const addToCart = (product: Product) => {

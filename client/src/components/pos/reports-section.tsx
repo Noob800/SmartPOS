@@ -95,16 +95,11 @@ const ReportsSection = () => {
     console.log("Generating report for", { rangeStart, rangeEnd });
   };
 
-  const exportReport = (format: string) => {
-    const reportData = {
-      period: `${rangeStart.toDateString()} - ${rangeEnd.toDateString()}`,
-      totalSales,
-      totalTransactions,
-      averageTransaction,
-      profitMargin,
-      sales: filteredSales
-    };
+  const { data: settings = [] } = useQuery({
+    queryKey: ["/api/settings"],
+  });
 
+  const exportReport = async (format: string) => {
     if (format === 'csv') {
       const csvContent = [
         ["Date", "Total", "Payment Method", "Status"],
@@ -125,6 +120,34 @@ const ReportsSection = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+    } else if (format === 'pdf') {
+      const { PDFGenerator } = await import('@/lib/pdf-generator');
+      const pdfGen = new PDFGenerator();
+      
+      const settingsMap = settings.reduce((acc: Record<string, string>, setting: any) => {
+        acc[setting.key] = setting.value;
+        return acc;
+      }, {});
+
+      const reportData = {
+        title: `Sales Report - ${dateRange === 'today' ? 'Today' : 
+                              dateRange === 'yesterday' ? 'Yesterday' :
+                              dateRange === 'this-week' ? 'This Week' :
+                              dateRange === 'this-month' ? 'This Month' : 'Custom Period'}`,
+        dateRange: { start: rangeStart, end: rangeEnd },
+        storeName: settingsMap.store_name || 'MiniMart Express',
+        storeAddress: settingsMap.store_address || '123 Main Street, Nairobi',
+        storePhone: settingsMap.store_phone || '+254 700 123456',
+        sales: filteredSales,
+        products: [],
+        totalSales,
+        totalTransactions,
+        averageTransaction,
+        taxAmount: filteredSales.reduce((sum, sale) => sum + parseFloat(sale.tax), 0)
+      };
+
+      const pdf = pdfGen.generateSalesReport(reportData);
+      pdf.save(`sales-report-${rangeStart.toISOString().split('T')[0]}.pdf`);
     }
   };
 
