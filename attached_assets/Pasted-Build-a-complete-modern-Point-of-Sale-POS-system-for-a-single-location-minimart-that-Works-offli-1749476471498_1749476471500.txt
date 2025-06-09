@@ -1,0 +1,144 @@
+Build a complete modern Point of Sale (POS) system for a single-location minimart that:
+
+Works offline locally on a computer
+
+Offers optional remote access and cloud backup for admin
+
+Uses barcode scanning, M-Pesa STK Push, and receipt printing
+
+💻 Platform:
+Works inside a web browser (hosted locally or online)
+
+Can be converted to a desktop app using Electron
+
+Supports use on Replit during development
+
+📦 Core Features (Modules)
+1. Sales/Checkout Module
+Scan products using barcode (auto-fill price, stock, etc.)
+
+Show product list, quantity, subtotal, VAT/tax
+
+Select payment method: Cash / M-Pesa STK Push / Credit
+
+M-Pesa STK Push API integration (Safaricom Daraja)
+
+Confirm transaction success/failure and print receipt
+
+Void/cancel item or whole sale
+
+Pause/hold sale (optional)
+
+2. Inventory Management Module
+Add, edit, or delete products (with barcode, price, quantity, cost price)
+
+Set product categories
+
+Stock adjustment reasons: restock, spoilage, theft
+
+Expiry date (optional)
+
+Import/export via CSV
+
+3. Reports & Analytics Module
+Daily, weekly, monthly sales report
+
+Top-selling products
+
+Gross profit/loss (based on cost price)
+
+Export reports as PDF or CSV
+
+Sales summary by payment method
+
+4. User & Access Control Module
+PIN login for staff and admin
+
+Role-based access control (Cashier vs Admin)
+
+Track login/logout times (shifts)
+
+Audit logs: who did what and when
+
+5. Payments & M-Pesa Module
+M-Pesa STK Push integration with Daraja API
+
+Input customer phone number, trigger push, display status
+
+Manual M-Pesa entry option if push fails
+
+Refund handling
+
+Daily M-Pesa payment reconciliation (optional)
+
+6. Offline Mode
+System must run fully offline using a local database (e.g., SQLite or IndexedDB)
+
+Automatically re-enable M-Pesa and cloud sync when online
+
+Local caching of product catalog and sales
+
+7. Receipt System
+Print receipt using thermal printer (ESC/POS or browser print)
+
+Show store name, logo, items, tax, payment method
+
+Save digital copy (PDF)
+
+8. Cloud Sync / Remote Access (Optional but Included)
+Sync data to cloud DB like Firebase or Supabase
+
+Admin can view reports remotely from any device
+
+System must detect internet connection and queue syncs when offline
+
+📂 Backend Features
+API endpoints for products, sales, reports, staff, payments
+
+Local DB (SQLite or lowdb), with sync logic to cloud DB
+
+Clean API structure: GET /products, POST /sales, etc.
+
+🖥️ UI/UX Features
+Minimal, fast, POS-friendly UI (touch or keyboard friendly)
+
+Sales screen as default
+
+Navigation: Sales | Inventory | Reports | Users | Settings
+
+Admin panel with settings for tax, currency, and backup
+
+🛠️ Technical Stack
+Frontend: React.js or Svelte with Tailwind CSS
+
+Backend: Node.js (Express) or Python (FastAPI or Flask)
+
+Database (Local): SQLite or IndexedDB
+
+Database (Remote): Firebase Firestore or Supabase
+
+Print Support: Browser print or ESC/POS integration
+
+M-Pesa: Safaricom Daraja API (STK Push)
+
+🧾 Optional Features to Include
+Expense tracking (input daily expenses, e.g., power, cleaning)
+
+Customer loyalty (name/phone, track points)
+
+Purchase order management (add items from supplier)
+
+Alerts for low stock and expired items
+
+Keyboard shortcuts for fast entry (e.g., F1 = cash, F2 = M-Pesa)
+
+✅ Testing / Final Output Expectations
+Include sample data for products and users
+
+All modules should be modular and reusable
+
+System should be installable locally or deployable online (Replit)
+
+Code should be well-documented and readable
+
+Must work without internet and gracefully reconnect when online
