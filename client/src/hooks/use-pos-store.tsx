@@ -38,6 +38,7 @@ interface POSActions {
   updateCartItem: (productId: number, quantity: number) => void;
   removeFromCart: (productId: number) => void;
   clearCart: () => void;
+  setPOSCart: (cart: CartItem[]) => void;
 
   // Modal actions
   setShowPaymentModal: (show: boolean) => void;
@@ -211,6 +212,10 @@ export const POSProvider = ({ children }: POSProviderProps) => {
     setPendingSales(current => [...current, sale]);
   };
 
+  const setPOSCart = (newCart: CartItem[]) => {
+    setCart(newCart);
+  };
+
   const value: POSContextType = {
     // State
     currentUser,
@@ -234,6 +239,7 @@ export const POSProvider = ({ children }: POSProviderProps) => {
     updateCartItem,
     removeFromCart,
     clearCart,
+    setPOSCart,
     setShowPaymentModal,
     setShowReceiptModal,
     setPaymentMethod,
