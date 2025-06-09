@@ -6,6 +6,7 @@ import {
   type InsertUser, type InsertProduct, type InsertSale, type InsertSaleItem, 
   type InsertStockAdjustment, type InsertSetting
 } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 class Storage {
   async initializeData() {
@@ -209,18 +210,16 @@ class Storage {
   }
 
   async searchProducts(query: string): Promise<Product[]> {
-    try {
-      const allProducts = await db.select().from(products).where(eq(products.isActive, true));
-      const lowerQuery = query.toLowerCase();
-      return allProducts.filter(product => 
-        product.name.toLowerCase().includes(lowerQuery) ||
-        product.sku.toLowerCase().includes(lowerQuery) ||
-        product.barcode?.includes(query)
-      );
-    } catch (error) {
-      console.error("Error searching products:", error);
-      return [];
-    }
+    const searchTerm = query.toLowerCase();
+    return await db.select()
+      .from(products)
+      .where(
+        sql`LOWER(${products.name}) LIKE ${`%${searchTerm}%`} 
+        OR LOWER(${products.sku}) LIKE ${`%${searchTerm}%`}
+        OR LOWER(${products.barcode}) LIKE ${`%${searchTerm}%`}
+        OR LOWER(${products.category}) LIKE ${`%${searchTerm}%`}`
+      )
+      .limit(20);
   }
 
   // Sales methods

@@ -9,19 +9,33 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Product, CartItem } from "@shared/schema";
-import { Barcode, ShoppingCart, Minus, Plus, Trash2, Pause, X, Calculator, Clock, Receipt, Undo, Camera } from "lucide-react";
+import { Barcode, ShoppingCart, Minus, Plus, Trash2, Pause, X, Calculator, Clock, Receipt, Undo, Camera, Search } from "lucide-react";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 
 const SalesSection = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
   const { currentUser, setShowPaymentModal, setPOSCart } = usePOSStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  // Search products for manual addition
+  const { data: searchResults = [] } = useQuery<Product[]>({
+    queryKey: ["/api/products", productSearchQuery],
+    queryFn: async () => {
+      if (!productSearchQuery.trim()) return [];
+      const response = await fetch(`/api/products?search=${encodeURIComponent(productSearchQuery)}`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+      return response.json();
+    },
+    enabled: productSearchQuery.length > 0,
   });
 
   const productLookupMutation = useMutation({
@@ -32,6 +46,12 @@ const SalesSection = () => {
     onSuccess: (product: Product) => {
       addToCart(product);
       setBarcodeInput("");
+      setProductSearchQuery("");
+      setShowProductSearch(false);
+      toast({
+        title: "Product Added",
+        description: `${product.name} added to cart`,
+      });
     },
     onError: () => {
       toast({
@@ -49,8 +69,44 @@ const SalesSection = () => {
     }
   };
 
+  // Auto-detect barcode scanning and search by SKU/name
+  const handleBarcodeInputChange = (value: string) => {
+    setBarcodeInput(value);
+    
+    // Auto-detect when input looks like a barcode (12+ digits) or SKU
+    if (value.length >= 3) {
+      // Check if it's a barcode (mostly numbers, length 8+)
+      const isBarcode = /^\d{8,}$/.test(value);
+      
+      if (isBarcode && value.length >= 8) {
+        // Auto-submit for barcode
+        productLookupMutation.mutate(value);
+        return;
+      }
+      
+      // For shorter codes or mixed alphanumeric, search by SKU/name
+      const matchedProduct = products.find(p => 
+        p.sku?.toLowerCase() === value.toLowerCase() ||
+        p.barcode === value ||
+        p.name.toLowerCase().includes(value.toLowerCase())
+      );
+      
+      if (matchedProduct) {
+        addToCart(matchedProduct);
+        setBarcodeInput("");
+        toast({
+          title: "Product Added",
+          description: `${matchedProduct.name} added to cart`,
+        });
+      }
+    }
+  };
+
   const handleCameraScan = (barcode: string) => {
     setShowBarcodeScanner(false);
+    setBarcodeInput("");
+    setProductSearchQuery("");
+    setShowProductSearch(false);
     productLookupMutation.mutate(barcode);
   };
 
@@ -152,20 +208,21 @@ const SalesSection = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 h-full">
       {/* Product Search & Cart */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Barcode Scanner */}
+        {/* Barcode Scanner & Product Search */}
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 space-y-4">
             <form onSubmit={handleBarcodeSubmit} className="flex items-center space-x-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Barcode / Product Search
+                  Barcode / SKU / Product Search (Auto-detect)
                 </label>
                 <div className="flex space-x-2">
                   <Input
                     value={barcodeInput}
-                    onChange={(e) => setBarcodeInput(e.target.value)}
-                    placeholder="Scan barcode or search product..."
+                    onChange={(e) => handleBarcodeInputChange(e.target.value)}
+                    placeholder="Scan barcode, enter SKU, or search product..."
                     className="flex-1"
+                    autoFocus
                   />
                   <Button type="submit" disabled={productLookupMutation.isPending}>
                     <Barcode className="w-4 h-4" />
@@ -180,6 +237,66 @@ const SalesSection = () => {
                 </div>
               </div>
             </form>
+
+            {/* Manual Product Search */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Manual Product Search
+              </label>
+              <div className="flex space-x-2">
+                <Input
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  placeholder="Search by name, SKU, or description..."
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => setShowProductSearch(!showProductSearch)}
+                >
+                  <Search className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Search Results */}
+              {showProductSearch && searchResults.length > 0 && (
+                <div className="mt-3 max-h-48 overflow-y-auto border rounded-lg">
+                  {searchResults.map((product) => (
+                    <div
+                      key={product.id}
+                      className="p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                      onClick={() => {
+                        addToCart(product);
+                        setProductSearchQuery("");
+                        setShowProductSearch(false);
+                        toast({
+                          title: "Product Added",
+                          description: `${product.name} added to cart`,
+                        });
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-gray-500">SKU: {product.sku} | Stock: {product.stock}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">KSH {parseFloat(product.price).toFixed(2)}</p>
+                        <Button size="sm" variant="outline">
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showProductSearch && productSearchQuery && searchResults.length === 0 && (
+                <div className="mt-3 p-3 text-center text-gray-500 border rounded-lg">
+                  No products found matching "{productSearchQuery}"
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
