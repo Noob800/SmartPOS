@@ -9,7 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Product, CartItem } from "@shared/schema";
-import { Barcode, ShoppingCart, Minus, Plus, Trash2, Pause, X, Calculator, Clock, Receipt, Undo, Camera, Search } from "lucide-react";
+import {
+  Barcode,
+  ShoppingCart,
+  Minus,
+  Plus,
+  Trash2,
+  Pause,
+  X,
+  Calculator,
+  Clock,
+  Receipt,
+  Undo,
+  Camera,
+  Search,
+} from "lucide-react";
 import { BarcodeScanner } from "@/components/ui/barcode-scanner";
 
 const SalesSection = () => {
@@ -31,8 +45,10 @@ const SalesSection = () => {
     queryKey: ["/api/products", productSearchQuery],
     queryFn: async () => {
       if (!productSearchQuery.trim()) return [];
-      const response = await fetch(`/api/products?search=${encodeURIComponent(productSearchQuery)}`);
-      if (!response.ok) throw new Error('Failed to fetch products');
+      const response = await fetch(
+        `/api/products?search=${encodeURIComponent(productSearchQuery)}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
     },
     enabled: productSearchQuery.length > 0,
@@ -40,7 +56,10 @@ const SalesSection = () => {
 
   const productLookupMutation = useMutation({
     mutationFn: async (barcode: string) => {
-      const response = await apiRequest("GET", `/api/products/barcode/${barcode}`);
+      const response = await apiRequest(
+        "GET",
+        `/api/products/barcode/${barcode}`,
+      );
       return response.json();
     },
     onSuccess: (product: Product) => {
@@ -72,25 +91,26 @@ const SalesSection = () => {
   // Auto-detect barcode scanning and search by SKU/name
   const handleBarcodeInputChange = (value: string) => {
     setBarcodeInput(value);
-    
+
     // Auto-detect when input looks like a barcode (12+ digits) or SKU
     if (value.length >= 3) {
       // Check if it's a barcode (mostly numbers, length 8+)
       const isBarcode = /^\d{8,}$/.test(value);
-      
+
       if (isBarcode && value.length >= 8) {
         // Auto-submit for barcode
         productLookupMutation.mutate(value);
         return;
       }
-      
+
       // For shorter codes or mixed alphanumeric, search by SKU/name
-      const matchedProduct = products.find(p => 
-        p.sku?.toLowerCase() === value.toLowerCase() ||
-        p.barcode === value ||
-        p.name.toLowerCase().includes(value.toLowerCase())
+      const matchedProduct = products.find(
+        (p) =>
+          p.sku?.toLowerCase() === value.toLowerCase() ||
+          p.barcode === value ||
+          p.name.toLowerCase().includes(value.toLowerCase()),
       );
-      
+
       if (matchedProduct) {
         addToCart(matchedProduct);
         setBarcodeInput("");
@@ -111,20 +131,26 @@ const SalesSection = () => {
   };
 
   const addToCart = (product: Product) => {
-    setCart(currentCart => {
-      const existingItem = currentCart.find(item => item.product.id === product.id);
+    setCart((currentCart) => {
+      const existingItem = currentCart.find(
+        (item) => item.product.id === product.id,
+      );
       if (existingItem) {
-        return currentCart.map(item =>
+        return currentCart.map((item) =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.unitPrice }
-            : item
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+                total: (item.quantity + 1) * item.unitPrice,
+              }
+            : item,
         );
       } else {
         const newItem: CartItem = {
           product,
           quantity: 1,
           unitPrice: parseFloat(product.price),
-          total: parseFloat(product.price)
+          total: parseFloat(product.price),
         };
         return [...currentCart, newItem];
       }
@@ -137,17 +163,23 @@ const SalesSection = () => {
       return;
     }
 
-    setCart(currentCart =>
-      currentCart.map(item =>
+    setCart((currentCart) =>
+      currentCart.map((item) =>
         item.product.id === productId
-          ? { ...item, quantity: newQuantity, total: newQuantity * item.unitPrice }
-          : item
-      )
+          ? {
+              ...item,
+              quantity: newQuantity,
+              total: newQuantity * item.unitPrice,
+            }
+          : item,
+      ),
     );
   };
 
   const removeFromCart = (productId: number) => {
-    setCart(currentCart => currentCart.filter(item => item.product.id !== productId));
+    setCart((currentCart) =>
+      currentCart.filter((item) => item.product.id !== productId),
+    );
   };
 
   const clearCart = () => {
@@ -188,33 +220,33 @@ const SalesSection = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'F1') {
+      if (e.key === "F1") {
         e.preventDefault();
-        handlePayment('cash');
-      } else if (e.key === 'F2') {
+        handlePayment("cash");
+      } else if (e.key === "F2") {
         e.preventDefault();
-        handlePayment('mpesa');
-      } else if (e.key === 'F3') {
+        handlePayment("mpesa");
+      } else if (e.key === "F3") {
         e.preventDefault();
-        handlePayment('credit');
-      } else if (e.key === 'Escape') {
+        handlePayment("credit");
+      } else if (e.key === "Escape") {
         setShowProductSearch(false);
       }
     };
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Element;
-      if (showProductSearch && !target.closest('.relative')) {
+      if (showProductSearch && !target.closest(".relative")) {
         setShowProductSearch(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    document.addEventListener('mousedown', handleClickOutside);
-    
+    window.addEventListener("keydown", handleKeyPress);
+    document.addEventListener("mousedown", handleClickOutside);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener("keydown", handleKeyPress);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [cart, showProductSearch]);
 
@@ -225,7 +257,10 @@ const SalesSection = () => {
         {/* Barcode Scanner & Product Search */}
         <Card>
           <CardContent className="p-6 space-y-4">
-            <form onSubmit={handleBarcodeSubmit} className="flex items-center space-x-4">
+            <form
+              onSubmit={handleBarcodeSubmit}
+              className="flex items-center space-x-4"
+            >
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Barcode / SKU / Product Search (Auto-detect)
@@ -238,11 +273,14 @@ const SalesSection = () => {
                     className="flex-1"
                     autoFocus
                   />
-                  <Button type="submit" disabled={productLookupMutation.isPending}>
+                  <Button
+                    type="submit"
+                    disabled={productLookupMutation.isPending}
+                  >
                     <Barcode className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant="outline"
                     onClick={() => setShowBarcodeScanner(true)}
                   >
@@ -257,18 +295,20 @@ const SalesSection = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Manual Product Search
               </label>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (searchResults.length > 0) {
-                  addToCart(searchResults[0]);
-                  setProductSearchQuery("");
-                  setShowProductSearch(false);
-                  toast({
-                    title: "Product Added",
-                    description: `${searchResults[0].name} added to cart`,
-                  });
-                }
-              }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchResults.length > 0) {
+                    addToCart(searchResults[0]);
+                    setProductSearchQuery("");
+                    setShowProductSearch(false);
+                    toast({
+                      title: "Product Added",
+                      description: `${searchResults[0].name} added to cart`,
+                    });
+                  }
+                }}
+              >
                 <div className="flex space-x-2">
                   <div className="flex-1 relative">
                     <Input
@@ -277,7 +317,9 @@ const SalesSection = () => {
                         setProductSearchQuery(e.target.value);
                         setShowProductSearch(e.target.value.length > 0);
                       }}
-                      onFocus={() => setShowProductSearch(productSearchQuery.length > 0)}
+                      onFocus={() =>
+                        setShowProductSearch(productSearchQuery.length > 0)
+                      }
                       placeholder="Search by name, SKU, or description..."
                       className="flex-1"
                     />
@@ -288,7 +330,7 @@ const SalesSection = () => {
                           <div
                             key={product.id}
                             className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer flex justify-between items-center ${
-                              index === 0 ? 'bg-blue-50' : ''
+                              index === 0 ? "bg-blue-50" : ""
                             }`}
                             onClick={() => {
                               addToCart(product);
@@ -302,10 +344,14 @@ const SalesSection = () => {
                           >
                             <div>
                               <p className="font-medium">{product.name}</p>
-                              <p className="text-sm text-gray-500">SKU: {product.sku} | Stock: {product.stock}</p>
+                              <p className="text-sm text-gray-500">
+                                SKU: {product.sku} | Stock: {product.stock}
+                              </p>
                             </div>
                             <div className="text-right">
-                              <p className="font-medium">KSH {parseFloat(product.price).toFixed(2)}</p>
+                              <p className="font-medium">
+                                KSH {parseFloat(product.price).toFixed(2)}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -317,8 +363,8 @@ const SalesSection = () => {
                       </div>
                     )}
                   </div>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     variant="outline"
                     disabled={searchResults.length === 0}
                   >
@@ -326,9 +372,6 @@ const SalesSection = () => {
                   </Button>
                 </div>
               </form>
-            </div>
-
-              
             </div>
           </CardContent>
         </Card>
@@ -364,11 +407,18 @@ const SalesSection = () => {
             ) : (
               <div className="space-y-4">
                 {cart.map((item) => (
-                  <div key={item.product.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div
+                    key={item.product.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <h3 className="font-medium">{item.product.name}</h3>
-                      <p className="text-sm text-gray-500">SKU: {item.product.sku}</p>
-                      <p className="text-sm font-medium">KSH {item.unitPrice.toFixed(2)}</p>
+                      <p className="text-sm text-gray-500">
+                        SKU: {item.product.sku}
+                      </p>
+                      <p className="text-sm font-medium">
+                        KSH {item.unitPrice.toFixed(2)}
+                      </p>
                     </div>
 
                     <div className="flex items-center space-x-3">
@@ -376,22 +426,30 @@ const SalesSection = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity - 1)
+                          }
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <span className="w-8 text-center font-medium">
+                          {item.quantity}
+                        </span>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity + 1)
+                          }
                         >
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
 
                       <div className="text-right">
-                        <p className="font-medium">KSH {item.total.toFixed(2)}</p>
+                        <p className="font-medium">
+                          KSH {item.total.toFixed(2)}
+                        </p>
                       </div>
 
                       <Button
@@ -443,7 +501,7 @@ const SalesSection = () => {
           <CardContent className="space-y-3">
             <Button
               className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-2"
-              onClick={() => handlePayment('cash')}
+              onClick={() => handlePayment("cash")}
               disabled={cart.length === 0}
             >
               <i className="fas fa-money-bill-wave"></i>
@@ -451,7 +509,7 @@ const SalesSection = () => {
             </Button>
             <Button
               className="w-full flex items-center justify-center space-x-2"
-              onClick={() => handlePayment('mpesa')}
+              onClick={() => handlePayment("mpesa")}
               disabled={cart.length === 0}
             >
               <i className="fas fa-mobile-alt"></i>
@@ -459,7 +517,7 @@ const SalesSection = () => {
             </Button>
             <Button
               className="w-full bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center space-x-2"
-              onClick={() => handlePayment('credit')}
+              onClick={() => handlePayment("credit")}
               disabled={cart.length === 0}
             >
               <i className="fas fa-credit-card"></i>
@@ -475,8 +533,8 @@ const SalesSection = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex flex-col items-center p-4 h-auto"
                 onClick={() => {
                   toast({
@@ -488,8 +546,8 @@ const SalesSection = () => {
                 <Receipt className="w-6 h-6 mb-2" />
                 <span className="text-sm">Reprint Receipt</span>
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex flex-col items-center p-4 h-auto"
                 onClick={() => {
                   toast({
@@ -501,8 +559,8 @@ const SalesSection = () => {
                 <Undo className="w-6 h-6 mb-2" />
                 <span className="text-sm">Return Item</span>
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex flex-col items-center p-4 h-auto"
                 onClick={() => {
                   const result = prompt("Enter calculation:");
@@ -526,8 +584,8 @@ const SalesSection = () => {
                 <Calculator className="w-6 h-6 mb-2" />
                 <span className="text-sm">Calculator</span>
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex flex-col items-center p-4 h-auto"
                 onClick={() => {
                   toast({
