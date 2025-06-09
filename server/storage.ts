@@ -120,7 +120,7 @@ export class DatabaseStorage implements IStorage {
       .update(products)
       .set({ isActive: false })
       .where(eq(products.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async searchProducts(query: string): Promise<Product[]> {
@@ -570,4 +570,14 @@ async function initializeDatabase() {
   }
 }
 
-export const storage = await initializeDatabase();
+// Use dynamic import to handle async initialization
+let storageInstance: IStorage;
+
+async function getStorage(): Promise<IStorage> {
+  if (!storageInstance) {
+    storageInstance = await initializeDatabase();
+  }
+  return storageInstance;
+}
+
+export { getStorage as storage };

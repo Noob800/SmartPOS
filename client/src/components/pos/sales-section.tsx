@@ -173,6 +173,13 @@ const SalesSection = () => {
                   <Button type="submit" disabled={productLookupMutation.isPending}>
                     <Barcode className="w-4 h-4" />
                   </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setShowBarcodeScanner(true)}
+                  >
+                    <Camera className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </form>
@@ -341,6 +348,13 @@ const SalesSection = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleCameraScan}
+      />
     </div>
   );
 };
