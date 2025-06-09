@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import LoginModal from "@/components/pos/login-modal";
@@ -11,6 +12,19 @@ import ReceiptModal from "@/components/pos/receipt-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar
+} from "@/components/ui/sidebar";
+import { 
   Store, 
   LogOut, 
   Wifi, 
@@ -22,13 +36,14 @@ import {
   Settings,
   Menu,
   X,
-  Shield
+  Shield,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const POSDashboard = () => {
   const [activeSection, setActiveSection] = useState("sales");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
   const { 
     currentUser, 
@@ -132,69 +147,42 @@ const POSDashboard = () => {
     </div>
   );
 
-  if (!currentUser) {
-    return <LoginModal />;
-  }
-
-  return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Mobile Menu Overlay */}
-      {isMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        fixed md:relative z-50 md:z-0
-        w-64 h-full bg-white shadow-lg border-r border-gray-200
-        transform transition-transform duration-300 ease-in-out
-        ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Store className="w-8 h-8 text-blue-600" />
-              <div>
-                <h1 className="text-lg font-bold text-gray-800">MiniMart POS</h1>
-                <div className="flex items-center space-x-2">
-                  {isOnline ? (
-                    <Wifi className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <WifiOff className="w-4 h-4 text-red-500" />
-                  )}
-                  <span className="text-xs text-gray-500">
-                    {isOnline ? "Online" : "Offline"}
-                  </span>
-                </div>
+  const AppSidebar = () => {
+    const { state } = useSidebar();
+    
+    return (
+      <Sidebar collapsible="icon">
+        <SidebarHeader>
+          <div className="flex items-center space-x-2 p-2">
+            <Store className="w-8 h-8 text-blue-600 flex-shrink-0" />
+            <div className={`transition-opacity duration-200 ${state === "collapsed" ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+              <h1 className="text-lg font-bold text-gray-800 whitespace-nowrap">MiniMart POS</h1>
+              <div className="flex items-center space-x-2">
+                {isOnline ? (
+                  <Wifi className="w-4 h-4 text-green-500" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-500" />
+                )}
+                <span className="text-xs text-gray-500">
+                  {isOnline ? "Online" : "Offline"}
+                </span>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
           </div>
-        </div>
+        </SidebarHeader>
 
-        {/* User Info */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-blue-600 font-medium">
-                {currentUser.name.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <p className="font-medium text-gray-800">{currentUser.name}</p>
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${
+        <SidebarContent>
+          {/* User Info */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-medium">
+                  {currentUser?.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className={`transition-opacity duration-200 ${state === "collapsed" ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+                <p className="font-medium text-gray-800 whitespace-nowrap">{currentUser?.name}</p>
+                <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
                   isAdmin 
                     ? 'bg-purple-100 text-purple-800' 
                     : 'bg-gray-100 text-gray-600'
@@ -204,81 +192,88 @@ const POSDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-2">
-          {navigationItems.map((item) => {
-            const isDisabled = item.requiresAdmin && !isAdmin;
-            const isActive = activeSection === item.id;
+          {/* Navigation */}
+          <SidebarMenu>
+            {navigationItems.map((item) => {
+              const isDisabled = item.requiresAdmin && !isAdmin;
+              const isActive = activeSection === item.id;
 
-            return (
-              <Button
-                key={item.id}
-                variant={isActive ? "default" : "ghost"}
-                className={`w-full justify-start ${
-                  isDisabled 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : 'hover:bg-gray-100'
-                }`}
-                onClick={() => {
-                  if (!isDisabled) {
-                    setActiveSection(item.id);
-                    setIsMenuOpen(false);
-                  }
-                }}
-                disabled={isDisabled}
+              return (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
+                    isActive={isActive}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        setActiveSection(item.id);
+                        setIsMenuOpen(false);
+                      }
+                    }}
+                    tooltip={state === "collapsed" ? item.label : undefined}
+                    className={`${
+                      isDisabled 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                    {item.requiresAdmin && (
+                      <Shield className="w-3 h-3 ml-auto text-purple-500" />
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={logout}
+                tooltip={state === "collapsed" ? "Logout" : undefined}
               >
-                {item.icon}
-                <span className="ml-3">{item.label}</span>
-                {item.requiresAdmin && (
-                  <Shield className="w-3 h-3 ml-auto text-purple-500" />
-                )}
-              </Button>
-            );
-          })}
-        </nav>
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+    );
+  };
 
-        {/* Logout Button */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={logout}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
+  if (!currentUser) {
+    return <LoginModal />;
+  }
+
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex h-screen bg-gray-50">
+        <AppSidebar />
+        <SidebarInset>
+          {/* Header with Sidebar Toggle */}
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="flex items-center gap-2 px-4">
+              <h1 className="text-lg font-medium">MiniMart POS</h1>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-auto p-4">
+            {renderActiveSection()}
+          </main>
+        </SidebarInset>
+
+        {/* Modals */}
+        {showPaymentModal && <PaymentModal />}
+        {showReceiptModal && <ReceiptModal />}
       </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <div className="md:hidden bg-white border-b border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMenuOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            <h1 className="text-lg font-medium">MiniMart POS</h1>
-            <div className="w-8" /> {/* Spacer */}
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto">
-          {renderActiveSection()}
-        </div>
-      </div>
-
-      {/* Modals */}
-      {showPaymentModal && <PaymentModal />}
-      {showReceiptModal && <ReceiptModal />}
-    </div>
+    </SidebarProvider>
   );
 };
 
