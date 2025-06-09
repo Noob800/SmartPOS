@@ -1,274 +1,36 @@
+import { eq, and } from "drizzle-orm";
+import { db } from "./db";
 import { 
   users, products, sales, saleItems, stockAdjustments, settings,
-  type User, type InsertUser, type Product, type InsertProduct,
-  type Sale, type InsertSale, type SaleItem, type InsertSaleItem,
-  type StockAdjustment, type InsertStockAdjustment,
-  type Setting, type InsertSetting
+  type User, type Product, type Sale, type SaleItem, type StockAdjustment, type Setting,
+  type InsertUser, type InsertProduct, type InsertSale, type InsertSaleItem, 
+  type InsertStockAdjustment, type InsertSetting
 } from "@shared/schema";
-import { db } from "./db";
-import { eq } from "drizzle-orm";
 
-export interface IStorage {
-  // Users
-  getUser(id: number): Promise<User | undefined>;
-  getUserByPin(pin: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
-  getAllUsers(): Promise<User[]>;
+class Storage {
+  async initializeData() {
+    // Check if we already have data
+    const existingUsers = await this.getAllUsers();
+    if (existingUsers.length > 0) return;
 
-  // Products
-  getProduct(id: number): Promise<Product | undefined>;
-  getProductByBarcode(barcode: string): Promise<Product | undefined>;
-  getProductBySku(sku: string): Promise<Product | undefined>;
-  getAllProducts(): Promise<Product[]>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined>;
-  deleteProduct(id: number): Promise<boolean>;
-  searchProducts(query: string): Promise<Product[]>;
-
-  // Sales
-  createSale(sale: InsertSale): Promise<Sale>;
-  getSale(id: number): Promise<Sale | undefined>;
-  getAllSales(): Promise<Sale[]>;
-  getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]>;
-  updateSaleStatus(id: number, status: string): Promise<Sale | undefined>;
-
-  // Sale Items
-  createSaleItem(saleItem: InsertSaleItem): Promise<SaleItem>;
-  getSaleItems(saleId: number): Promise<SaleItem[]>;
-
-  // Stock Adjustments
-  createStockAdjustment(adjustment: InsertStockAdjustment): Promise<StockAdjustment>;
-  getStockAdjustments(productId?: number): Promise<StockAdjustment[]>;
-
-  // Settings
-  getSetting(key: string): Promise<Setting | undefined>;
-  setSetting(key: string, value: string): Promise<Setting>;
-  getAllSettings(): Promise<Setting[]>;
-}
-
-export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByPin(pin: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.pin, pin));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
-  }
-
-  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set(updates)
-      .where(eq(users.id, id))
-      .returning();
-    return user || undefined;
-  }
-
-  async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
-  }
-
-  async getProduct(id: number): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.id, id));
-    return product || undefined;
-  }
-
-  async getProductByBarcode(barcode: string): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.barcode, barcode));
-    return product || undefined;
-  }
-
-  async getProductBySku(sku: string): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.sku, sku));
-    return product || undefined;
-  }
-
-  async getAllProducts(): Promise<Product[]> {
-    return await db.select().from(products).where(eq(products.isActive, true));
-  }
-
-  async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const [product] = await db
-      .insert(products)
-      .values(insertProduct)
-      .returning();
-    return product;
-  }
-
-  async updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined> {
-    const [product] = await db
-      .update(products)
-      .set(updates)
-      .where(eq(products.id, id))
-      .returning();
-    return product || undefined;
-  }
-
-  async deleteProduct(id: number): Promise<boolean> {
-    const result = await db
-      .update(products)
-      .set({ isActive: false })
-      .where(eq(products.id, id));
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  async searchProducts(query: string): Promise<Product[]> {
-    // For PostgreSQL, we'll need to use ilike for case-insensitive search
-    const allProducts = await db.select().from(products).where(eq(products.isActive, true));
-    const lowerQuery = query.toLowerCase();
-    return allProducts.filter(product => 
-      product.name.toLowerCase().includes(lowerQuery) ||
-      product.sku.toLowerCase().includes(lowerQuery) ||
-      product.barcode?.includes(query)
-    );
-  }
-
-  async createSale(insertSale: InsertSale): Promise<Sale> {
-    const [sale] = await db
-      .insert(sales)
-      .values(insertSale)
-      .returning();
-    return sale;
-  }
-
-  async getSale(id: number): Promise<Sale | undefined> {
-    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
-    return sale || undefined;
-  }
-
-  async getAllSales(): Promise<Sale[]> {
-    return await db.select().from(sales);
-  }
-
-  async getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]> {
-    // For now, we'll get all sales and filter in memory
-    // In production, this should use proper date range queries
-    const allSales = await db.select().from(sales);
-    return allSales.filter(sale => 
-      sale.createdAt >= startDate && sale.createdAt <= endDate
-    );
-  }
-
-  async updateSaleStatus(id: number, status: string): Promise<Sale | undefined> {
-    const [sale] = await db
-      .update(sales)
-      .set({ status })
-      .where(eq(sales.id, id))
-      .returning();
-    return sale || undefined;
-  }
-
-  async createSaleItem(insertSaleItem: InsertSaleItem): Promise<SaleItem> {
-    const [saleItem] = await db
-      .insert(saleItems)
-      .values(insertSaleItem)
-      .returning();
-    return saleItem;
-  }
-
-  async getSaleItems(saleId: number): Promise<SaleItem[]> {
-    return await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
-  }
-
-  async createStockAdjustment(insertAdjustment: InsertStockAdjustment): Promise<StockAdjustment> {
-    const [adjustment] = await db
-      .insert(stockAdjustments)
-      .values(insertAdjustment)
-      .returning();
-    return adjustment;
-  }
-
-  async getStockAdjustments(productId?: number): Promise<StockAdjustment[]> {
-    if (productId) {
-      return await db.select().from(stockAdjustments).where(eq(stockAdjustments.productId, productId));
-    }
-    return await db.select().from(stockAdjustments);
-  }
-
-  async getSetting(key: string): Promise<Setting | undefined> {
-    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
-    return setting || undefined;
-  }
-
-  async setSetting(key: string, value: string): Promise<Setting> {
-    const existing = await this.getSetting(key);
-    if (existing) {
-      const [setting] = await db
-        .update(settings)
-        .set({ value })
-        .where(eq(settings.key, key))
-        .returning();
-      return setting;
-    } else {
-      const [setting] = await db
-        .insert(settings)
-        .values({ key, value })
-        .returning();
-      return setting;
-    }
-  }
-
-  async getAllSettings(): Promise<Setting[]> {
-    return await db.select().from(settings);
-  }
-}
-
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private products: Map<number, Product>;
-  private sales: Map<number, Sale>;
-  private saleItems: Map<number, SaleItem>;
-  private stockAdjustments: Map<number, StockAdjustment>;
-  private settings: Map<string, Setting>;
-  private currentId: { [key: string]: number };
-
-  constructor() {
-    this.users = new Map();
-    this.products = new Map();
-    this.sales = new Map();
-    this.saleItems = new Map();
-    this.stockAdjustments = new Map();
-    this.settings = new Map();
-    this.currentId = {
-      users: 1,
-      products: 1,
-      sales: 1,
-      saleItems: 1,
-      stockAdjustments: 1,
-      settings: 1
-    };
-    this.initializeSampleData();
-  }
-
-  private initializeSampleData() {
-    // Create default admin and cashier users
-    this.createUser({
-      name: "Admin User",
+    // Create default admin user
+    await this.createUser({
+      name: "Admin",
       pin: "1234",
       role: "admin",
       isActive: true
     });
 
-    this.createUser({
-      name: "Cashier User", 
+    // Create default cashier user
+    await this.createUser({
+      name: "Cashier",
       pin: "0000",
       role: "cashier",
       isActive: true
     });
 
     // Create sample products
-    this.createProduct({
+    await this.createProduct({
       name: "Coca Cola 500ml",
       sku: "CC500",
       barcode: "1234567890123",
@@ -280,7 +42,7 @@ export class MemStorage implements IStorage {
       isActive: true
     });
 
-    this.createProduct({
+    await this.createProduct({
       name: "Bread Loaf",
       sku: "BL001",
       barcode: "2345678901234",
@@ -292,7 +54,7 @@ export class MemStorage implements IStorage {
       isActive: true
     });
 
-    this.createProduct({
+    await this.createProduct({
       name: "Milk 1L",
       sku: "MLK1L",
       barcode: "3456789012345",
@@ -305,279 +67,302 @@ export class MemStorage implements IStorage {
     });
 
     // Set default settings
-    this.setSetting("store_name", "MiniMart Express");
-    this.setSetting("store_address", "123 Main Street, Nairobi, Kenya");
-    this.setSetting("store_phone", "+254 700 123456");
-    this.setSetting("currency", "KSH");
-    this.setSetting("tax_rate", "16");
-    this.setSetting("receipt_header", "Thank you for shopping with us!\nVisit again soon.");
-    this.setSetting("receipt_footer", "For support: +254 700 123456\nwww.minimartexpress.co.ke");
+    await this.setSetting("store_name", "MiniMart Express");
+    await this.setSetting("store_address", "123 Main Street, Nairobi, Kenya");
+    await this.setSetting("store_phone", "+254 700 123456");
+    await this.setSetting("currency", "KSH");
+    await this.setSetting("tax_rate", "16");
+    await this.setSetting("receipt_header", "Thank you for shopping with us!\nVisit again soon.");
+    await this.setSetting("receipt_footer", "For support: +254 700 123456\nwww.minimartexpress.co.ke");
   }
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user || undefined;
+    } catch (error) {
+      console.error("Error getting user:", error);
+      return undefined;
+    }
   }
 
   async getUserByPin(pin: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.pin === pin && user.isActive);
+    try {
+      const [user] = await db.select().from(users).where(and(eq(users.pin, pin), eq(users.isActive, true)));
+      return user || undefined;
+    } catch (error) {
+      console.error("Error getting user by PIN:", error);
+      return undefined;
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId.users++;
-    const user: User = {
-      ...insertUser,
-      id,
-      lastLogin: null,
-      createdAt: new Date()
-    };
-    this.users.set(id, user);
-    return user;
+    try {
+      const [user] = await db.insert(users).values(insertUser).returning();
+      return user;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw error;
+    }
   }
 
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    const updatedUser = { ...user, ...updates };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    try {
+      const [user] = await db
+        .update(users)
+        .set(updates)
+        .where(eq(users.id, id))
+        .returning();
+      return user || undefined;
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return undefined;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    try {
+      return await db.select().from(users);
+    } catch (error) {
+      console.error("Error getting all users:", error);
+      return [];
+    }
   }
 
   // Product methods
   async getProduct(id: number): Promise<Product | undefined> {
-    return this.products.get(id);
+    try {
+      const [product] = await db.select().from(products).where(eq(products.id, id));
+      return product || undefined;
+    } catch (error) {
+      console.error("Error getting product:", error);
+      return undefined;
+    }
   }
 
   async getProductByBarcode(barcode: string): Promise<Product | undefined> {
-    return Array.from(this.products.values()).find(product => product.barcode === barcode && product.isActive);
+    try {
+      const [product] = await db.select().from(products).where(and(eq(products.barcode, barcode), eq(products.isActive, true)));
+      return product || undefined;
+    } catch (error) {
+      console.error("Error getting product by barcode:", error);
+      return undefined;
+    }
   }
 
   async getProductBySku(sku: string): Promise<Product | undefined> {
-    return Array.from(this.products.values()).find(product => product.sku === sku && product.isActive);
+    try {
+      const [product] = await db.select().from(products).where(and(eq(products.sku, sku), eq(products.isActive, true)));
+      return product || undefined;
+    } catch (error) {
+      console.error("Error getting product by SKU:", error);
+      return undefined;
+    }
   }
 
   async getAllProducts(): Promise<Product[]> {
-    return Array.from(this.products.values()).filter(product => product.isActive);
+    try {
+      return await db.select().from(products).where(eq(products.isActive, true));
+    } catch (error) {
+      console.error("Error getting all products:", error);
+      return [];
+    }
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const id = this.currentId.products++;
-    const product: Product = {
-      ...insertProduct,
-      id,
-      createdAt: new Date()
-    };
-    this.products.set(id, product);
-    return product;
+    try {
+      const [product] = await db.insert(products).values(insertProduct).returning();
+      return product;
+    } catch (error) {
+      console.error("Error creating product:", error);
+      throw error;
+    }
   }
 
   async updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined> {
-    const product = this.products.get(id);
-    if (!product) return undefined;
-    const updatedProduct = { ...product, ...updates };
-    this.products.set(id, updatedProduct);
-    return updatedProduct;
+    try {
+      const [product] = await db
+        .update(products)
+        .set(updates)
+        .where(eq(products.id, id))
+        .returning();
+      return product || undefined;
+    } catch (error) {
+      console.error("Error updating product:", error);
+      return undefined;
+    }
   }
 
   async deleteProduct(id: number): Promise<boolean> {
-    const product = this.products.get(id);
-    if (!product) return false;
-    // Soft delete
-    await this.updateProduct(id, { isActive: false });
-    return true;
+    try {
+      const [product] = await db
+        .update(products)
+        .set({ isActive: false })
+        .where(eq(products.id, id))
+        .returning();
+      return !!product;
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      return false;
+    }
   }
 
   async searchProducts(query: string): Promise<Product[]> {
-    const lowerQuery = query.toLowerCase();
-    return Array.from(this.products.values()).filter(product => 
-      product.isActive && (
+    try {
+      const allProducts = await db.select().from(products).where(eq(products.isActive, true));
+      const lowerQuery = query.toLowerCase();
+      return allProducts.filter(product => 
         product.name.toLowerCase().includes(lowerQuery) ||
         product.sku.toLowerCase().includes(lowerQuery) ||
         product.barcode?.includes(query)
-      )
-    );
+      );
+    } catch (error) {
+      console.error("Error searching products:", error);
+      return [];
+    }
   }
 
   // Sales methods
   async createSale(insertSale: InsertSale): Promise<Sale> {
-    const id = this.currentId.sales++;
-    const sale: Sale = {
-      ...insertSale,
-      id,
-      createdAt: new Date()
-    };
-    this.sales.set(id, sale);
-    return sale;
+    try {
+      const [sale] = await db.insert(sales).values(insertSale).returning();
+      return sale;
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      throw error;
+    }
   }
 
   async getSale(id: number): Promise<Sale | undefined> {
-    return this.sales.get(id);
+    try {
+      const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+      return sale || undefined;
+    } catch (error) {
+      console.error("Error getting sale:", error);
+      return undefined;
+    }
   }
 
   async getAllSales(): Promise<Sale[]> {
-    return Array.from(this.sales.values());
+    try {
+      return await db.select().from(sales);
+    } catch (error) {
+      console.error("Error getting all sales:", error);
+      return [];
+    }
   }
 
   async getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]> {
-    return Array.from(this.sales.values()).filter(sale => 
-      sale.createdAt >= startDate && sale.createdAt <= endDate
-    );
+    try {
+      const allSales = await db.select().from(sales);
+      return allSales.filter(sale => 
+        sale.createdAt >= startDate && sale.createdAt <= endDate
+      );
+    } catch (error) {
+      console.error("Error getting sales by date range:", error);
+      return [];
+    }
   }
 
   async updateSaleStatus(id: number, status: string): Promise<Sale | undefined> {
-    const sale = this.sales.get(id);
-    if (!sale) return undefined;
-    const updatedSale = { ...sale, status };
-    this.sales.set(id, updatedSale);
-    return updatedSale;
+    try {
+      const [sale] = await db
+        .update(sales)
+        .set({ status })
+        .where(eq(sales.id, id))
+        .returning();
+      return sale || undefined;
+    } catch (error) {
+      console.error("Error updating sale status:", error);
+      return undefined;
+    }
   }
 
   // Sale Items methods
   async createSaleItem(insertSaleItem: InsertSaleItem): Promise<SaleItem> {
-    const id = this.currentId.saleItems++;
-    const saleItem: SaleItem = {
-      ...insertSaleItem,
-      id
-    };
-    this.saleItems.set(id, saleItem);
-    return saleItem;
+    try {
+      const [saleItem] = await db.insert(saleItems).values(insertSaleItem).returning();
+      return saleItem;
+    } catch (error) {
+      console.error("Error creating sale item:", error);
+      throw error;
+    }
   }
 
   async getSaleItems(saleId: number): Promise<SaleItem[]> {
-    return Array.from(this.saleItems.values()).filter(item => item.saleId === saleId);
+    try {
+      return await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
+    } catch (error) {
+      console.error("Error getting sale items:", error);
+      return [];
+    }
   }
 
   // Stock Adjustments methods
   async createStockAdjustment(insertAdjustment: InsertStockAdjustment): Promise<StockAdjustment> {
-    const id = this.currentId.stockAdjustments++;
-    const adjustment: StockAdjustment = {
-      ...insertAdjustment,
-      id,
-      createdAt: new Date()
-    };
-    this.stockAdjustments.set(id, adjustment);
-    return adjustment;
+    try {
+      const [adjustment] = await db.insert(stockAdjustments).values(insertAdjustment).returning();
+      return adjustment;
+    } catch (error) {
+      console.error("Error creating stock adjustment:", error);
+      throw error;
+    }
   }
 
   async getStockAdjustments(productId?: number): Promise<StockAdjustment[]> {
-    const adjustments = Array.from(this.stockAdjustments.values());
-    return productId ? adjustments.filter(adj => adj.productId === productId) : adjustments;
+    try {
+      if (productId) {
+        return await db.select().from(stockAdjustments).where(eq(stockAdjustments.productId, productId));
+      }
+      return await db.select().from(stockAdjustments);
+    } catch (error) {
+      console.error("Error getting stock adjustments:", error);
+      return [];
+    }
   }
 
   // Settings methods
   async getSetting(key: string): Promise<Setting | undefined> {
-    return this.settings.get(key);
+    try {
+      const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+      return setting || undefined;
+    } catch (error) {
+      console.error("Error getting setting:", error);
+      return undefined;
+    }
   }
 
   async setSetting(key: string, value: string): Promise<Setting> {
-    const existing = this.settings.get(key);
-    if (existing) {
-      const updated = { ...existing, value };
-      this.settings.set(key, updated);
-      return updated;
-    } else {
-      const id = this.currentId.settings++;
-      const setting: Setting = { id, key, value };
-      this.settings.set(key, setting);
+    try {
+      // Try to update first
+      const [existing] = await db
+        .update(settings)
+        .set({ value })
+        .where(eq(settings.key, key))
+        .returning();
+
+      if (existing) {
+        return existing;
+      }
+
+      // If not exists, create new
+      const [setting] = await db.insert(settings).values({ key, value }).returning();
       return setting;
+    } catch (error) {
+      console.error("Error setting setting:", error);
+      throw error;
     }
   }
 
   async getAllSettings(): Promise<Setting[]> {
-    return Array.from(this.settings.values());
-  }
-}
-
-// Initialize database and create sample data
-async function initializeDatabase() {
-  try {
-    // Create sample data for database
-    const storage = new DatabaseStorage();
-    
-    // Check if users exist, if not create sample data
-    const existingUsers = await storage.getAllUsers();
-    if (existingUsers.length === 0) {
-      // Create default users
-      await storage.createUser({
-        name: "Admin User",
-        pin: "1234",
-        role: "admin",
-        isActive: true
-      });
-
-      await storage.createUser({
-        name: "Cashier User", 
-        pin: "0000",
-        role: "cashier",
-        isActive: true
-      });
-
-      // Create sample products
-      await storage.createProduct({
-        name: "Coca Cola 500ml",
-        sku: "CC500",
-        barcode: "1234567890123",
-        category: "Beverages",
-        price: "50.00",
-        costPrice: "35.00",
-        stock: 24,
-        minStock: 5,
-        isActive: true
-      });
-
-      await storage.createProduct({
-        name: "Bread Loaf",
-        sku: "BL001",
-        barcode: "2345678901234",
-        category: "Bakery",
-        price: "45.00",
-        costPrice: "30.00",
-        stock: 3,
-        minStock: 5,
-        isActive: true
-      });
-
-      await storage.createProduct({
-        name: "Milk 1L",
-        sku: "MLK1L",
-        barcode: "3456789012345",
-        category: "Dairy",
-        price: "75.00",
-        costPrice: "55.00",
-        stock: 12,
-        minStock: 3,
-        isActive: true
-      });
-
-      // Set default settings
-      await storage.setSetting("store_name", "MiniMart Express");
-      await storage.setSetting("store_address", "123 Main Street, Nairobi, Kenya");
-      await storage.setSetting("store_phone", "+254 700 123456");
-      await storage.setSetting("currency", "KSH");
-      await storage.setSetting("tax_rate", "16");
-      await storage.setSetting("receipt_header", "Thank you for shopping with us!\nVisit again soon.");
-      await storage.setSetting("receipt_footer", "For support: +254 700 123456\nwww.minimartexpress.co.ke");
+    try {
+      return await db.select().from(settings);
+    } catch (error) {
+      console.error("Error getting all settings:", error);
+      return [];
     }
-    
-    return storage;
-  } catch (error) {
-    console.warn("Database connection failed, falling back to in-memory storage:", error);
-    return new MemStorage();
   }
 }
 
-// Use dynamic import to handle async initialization
-let storageInstance: IStorage;
-
-async function getStorage(): Promise<IStorage> {
-  if (!storageInstance) {
-    storageInstance = await initializeDatabase();
-  }
-  return storageInstance;
-}
-
-export { getStorage as storage };
+export const storage = new Storage();

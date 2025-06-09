@@ -7,6 +7,14 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize storage with default data
+  try {
+    await storage.initializeData();
+    console.log("Storage initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize storage:", error);
+  }
+
   // Auth routes
   app.post("/api/auth/login", async (req, res) => {
     try {
