@@ -5,6 +5,8 @@ import {
   type StockAdjustment, type InsertStockAdjustment,
   type Setting, type InsertSetting
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -43,6 +45,183 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   setSetting(key: string, value: string): Promise<Setting>;
   getAllSettings(): Promise<Setting[]>;
+}
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByPin(pin: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.pin, pin));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async getProductByBarcode(barcode: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.barcode, barcode));
+    return product || undefined;
+  }
+
+  async getProductBySku(sku: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.sku, sku));
+    return product || undefined;
+  }
+
+  async getAllProducts(): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.isActive, true));
+  }
+
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    const [product] = await db
+      .insert(products)
+      .values(insertProduct)
+      .returning();
+    return product;
+  }
+
+  async updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined> {
+    const [product] = await db
+      .update(products)
+      .set(updates)
+      .where(eq(products.id, id))
+      .returning();
+    return product || undefined;
+  }
+
+  async deleteProduct(id: number): Promise<boolean> {
+    const result = await db
+      .update(products)
+      .set({ isActive: false })
+      .where(eq(products.id, id));
+    return result.rowCount > 0;
+  }
+
+  async searchProducts(query: string): Promise<Product[]> {
+    // For PostgreSQL, we'll need to use ilike for case-insensitive search
+    const allProducts = await db.select().from(products).where(eq(products.isActive, true));
+    const lowerQuery = query.toLowerCase();
+    return allProducts.filter(product => 
+      product.name.toLowerCase().includes(lowerQuery) ||
+      product.sku.toLowerCase().includes(lowerQuery) ||
+      product.barcode?.includes(query)
+    );
+  }
+
+  async createSale(insertSale: InsertSale): Promise<Sale> {
+    const [sale] = await db
+      .insert(sales)
+      .values(insertSale)
+      .returning();
+    return sale;
+  }
+
+  async getSale(id: number): Promise<Sale | undefined> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    return sale || undefined;
+  }
+
+  async getAllSales(): Promise<Sale[]> {
+    return await db.select().from(sales);
+  }
+
+  async getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]> {
+    // For now, we'll get all sales and filter in memory
+    // In production, this should use proper date range queries
+    const allSales = await db.select().from(sales);
+    return allSales.filter(sale => 
+      sale.createdAt >= startDate && sale.createdAt <= endDate
+    );
+  }
+
+  async updateSaleStatus(id: number, status: string): Promise<Sale | undefined> {
+    const [sale] = await db
+      .update(sales)
+      .set({ status })
+      .where(eq(sales.id, id))
+      .returning();
+    return sale || undefined;
+  }
+
+  async createSaleItem(insertSaleItem: InsertSaleItem): Promise<SaleItem> {
+    const [saleItem] = await db
+      .insert(saleItems)
+      .values(insertSaleItem)
+      .returning();
+    return saleItem;
+  }
+
+  async getSaleItems(saleId: number): Promise<SaleItem[]> {
+    return await db.select().from(saleItems).where(eq(saleItems.saleId, saleId));
+  }
+
+  async createStockAdjustment(insertAdjustment: InsertStockAdjustment): Promise<StockAdjustment> {
+    const [adjustment] = await db
+      .insert(stockAdjustments)
+      .values(insertAdjustment)
+      .returning();
+    return adjustment;
+  }
+
+  async getStockAdjustments(productId?: number): Promise<StockAdjustment[]> {
+    if (productId) {
+      return await db.select().from(stockAdjustments).where(eq(stockAdjustments.productId, productId));
+    }
+    return await db.select().from(stockAdjustments);
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+    return setting || undefined;
+  }
+
+  async setSetting(key: string, value: string): Promise<Setting> {
+    const existing = await this.getSetting(key);
+    if (existing) {
+      const [setting] = await db
+        .update(settings)
+        .set({ value })
+        .where(eq(settings.key, key))
+        .returning();
+      return setting;
+    } else {
+      const [setting] = await db
+        .insert(settings)
+        .values({ key, value })
+        .returning();
+      return setting;
+    }
+  }
+
+  async getAllSettings(): Promise<Setting[]> {
+    return await db.select().from(settings);
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -313,4 +492,82 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Initialize database and create sample data
+async function initializeDatabase() {
+  try {
+    // Create sample data for database
+    const storage = new DatabaseStorage();
+    
+    // Check if users exist, if not create sample data
+    const existingUsers = await storage.getAllUsers();
+    if (existingUsers.length === 0) {
+      // Create default users
+      await storage.createUser({
+        name: "Admin User",
+        pin: "1234",
+        role: "admin",
+        isActive: true
+      });
+
+      await storage.createUser({
+        name: "Cashier User", 
+        pin: "0000",
+        role: "cashier",
+        isActive: true
+      });
+
+      // Create sample products
+      await storage.createProduct({
+        name: "Coca Cola 500ml",
+        sku: "CC500",
+        barcode: "1234567890123",
+        category: "Beverages",
+        price: "50.00",
+        costPrice: "35.00",
+        stock: 24,
+        minStock: 5,
+        isActive: true
+      });
+
+      await storage.createProduct({
+        name: "Bread Loaf",
+        sku: "BL001",
+        barcode: "2345678901234",
+        category: "Bakery",
+        price: "45.00",
+        costPrice: "30.00",
+        stock: 3,
+        minStock: 5,
+        isActive: true
+      });
+
+      await storage.createProduct({
+        name: "Milk 1L",
+        sku: "MLK1L",
+        barcode: "3456789012345",
+        category: "Dairy",
+        price: "75.00",
+        costPrice: "55.00",
+        stock: 12,
+        minStock: 3,
+        isActive: true
+      });
+
+      // Set default settings
+      await storage.setSetting("store_name", "MiniMart Express");
+      await storage.setSetting("store_address", "123 Main Street, Nairobi, Kenya");
+      await storage.setSetting("store_phone", "+254 700 123456");
+      await storage.setSetting("currency", "KSH");
+      await storage.setSetting("tax_rate", "16");
+      await storage.setSetting("receipt_header", "Thank you for shopping with us!\nVisit again soon.");
+      await storage.setSetting("receipt_footer", "For support: +254 700 123456\nwww.minimartexpress.co.ke");
+    }
+    
+    return storage;
+  } catch (error) {
+    console.warn("Database connection failed, falling back to in-memory storage:", error);
+    return new MemStorage();
+  }
+}
+
+export const storage = await initializeDatabase();

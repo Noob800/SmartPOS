@@ -252,20 +252,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment processing routes
   app.post("/api/payments/mpesa", async (req, res) => {
     try {
-      const { phoneNumber, amount } = req.body;
+      const { phoneNumber, amount, accountReference = "POS-Sale", transactionDesc = "POS Payment" } = req.body;
       
-      // Simulate M-Pesa STK Push
-      setTimeout(() => {
-        // In a real implementation, this would integrate with Safaricom Daraja API
-        const mpesaRef = `MPX${Date.now()}`;
-        res.json({ 
-          success: true, 
-          mpesaRef,
-          message: "Payment processed successfully" 
+      const { mpesaService } = await import("./mpesa");
+      
+      if (!mpesaService.isConfigured()) {
+        // Fallback to simulation if M-Pesa not configured
+        setTimeout(() => {
+          const mpesaRef = `SIM${Date.now()}`;
+          res.json({ 
+            success: true, 
+            mpesaRef,
+            message: "Payment simulated (M-Pesa not configured)",
+            checkoutRequestID: `sim_${Date.now()}`
+          });
+        }, 2000);
+        return;
+      }
+
+      const response = await mpesaService.initiateSTKPush({
+        phoneNumber,
+        amount,
+        accountReference,
+        transactionDesc
+      });
+
+      if (response.ResponseCode === "0") {
+        res.json({
+          success: true,
+          message: response.CustomerMessage,
+          checkoutRequestID: response.CheckoutRequestID,
+          merchantRequestID: response.MerchantRequestID
         });
-      }, 2000);
+      } else {
+        res.status(400).json({
+          success: false,
+          message: response.ResponseDescription
+        });
+      }
+    } catch (error: any) {
+      console.error("M-Pesa payment error:", error);
+      res.status(500).json({ 
+        success: false,
+        message: error.message || "Payment processing failed" 
+      });
+    }
+  });
+
+  // M-Pesa payment status query
+  app.post("/api/payments/mpesa/status", async (req, res) => {
+    try {
+      const { checkoutRequestID } = req.body;
+      
+      const { mpesaService } = await import("./mpesa");
+      
+      if (!mpesaService.isConfigured()) {
+        res.json({
+          success: true,
+          status: "completed",
+          message: "Simulated payment completed"
+        });
+        return;
+      }
+
+      const response = await mpesaService.querySTKStatus(checkoutRequestID);
+      
+      res.json({
+        success: true,
+        status: response.ResultCode === "0" ? "completed" : "failed",
+        message: response.ResultDesc,
+        merchantRequestID: response.MerchantRequestID,
+        checkoutRequestID: response.CheckoutRequestID
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to query payment status"
+      });
+    }
+  });
+
+  // M-Pesa callback endpoint
+  app.post("/api/payments/mpesa/callback", async (req, res) => {
+    try {
+      const { mpesaService } = await import("./mpesa");
+      const callbackResult = mpesaService.processCallback(req.body);
+      
+      // Here you would update your database with the payment result
+      console.log("M-Pesa callback received:", callbackResult);
+      
+      // Always respond with success to acknowledge receipt
+      res.json({ ResultCode: 0, ResultDesc: "Success" });
     } catch (error) {
-      res.status(500).json({ message: "Payment processing failed" });
+      console.error("M-Pesa callback error:", error);
+      res.status(200).json({ ResultCode: 1, ResultDesc: "Failed" });
     }
   });
 
