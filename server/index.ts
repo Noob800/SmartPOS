@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import { seedMockData } from "./seed-data";
 
 const app = express();
 app.use(express.json());
@@ -37,12 +39,27 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  const server = registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Initialize storage and accounting
+  await storage.initializeData();
+
+  // Add seed data endpoint (development only)
+  if (app.get("env") === "development") {
+    app.post("/api/seed-mock-data", async (_req, res) => {
+      try {
+        await seedMockData();
+        res.json({ success: true, message: "Mock data seeded successfully" });
+      } catch (error) {
+        console.error("Error seeding mock data:", error);
+        res.status(500).json({ success: false, message: "Failed to seed mock data" });
+      }
+    });
+  }
+
+  app.use((err: any, _req: any, res: any, _next: any) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
@@ -57,14 +74,9 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // this serves both the API and the client
+  const PORT = 5000;
+  server.listen(PORT, "0.0.0.0", () => {
+    log(`serving on port ${PORT}`);
   });
 })();
