@@ -39,8 +39,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = registerRoutes(app);
-
   // Initialize storage and accounting
   await storage.initializeData();
 
@@ -54,6 +52,9 @@ app.use((req, res, next) => {
       res.status(500).json({ success: false, message: "Failed to seed mock data" });
     }
   });
+
+  // Register all API routes and create HTTP server
+  const server = registerRoutes(app);
 
   app.use((err: any, _req: any, res: any, _next: any) => {
     const status = err.status || err.statusCode || 500;
