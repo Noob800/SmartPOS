@@ -44,18 +44,16 @@ app.use((req, res, next) => {
   // Initialize storage and accounting
   await storage.initializeData();
 
-  // Add seed data endpoint (development only)
-  if (app.get("env") === "development") {
-    app.post("/api/seed-mock-data", async (_req, res) => {
-      try {
-        await seedMockData();
-        res.json({ success: true, message: "Mock data seeded successfully" });
-      } catch (error) {
-        console.error("Error seeding mock data:", error);
-        res.status(500).json({ success: false, message: "Failed to seed mock data" });
-      }
-    });
-  }
+  // Add seed data endpoint
+  app.post("/api/seed-mock-data", async (_req, res) => {
+    try {
+      await seedMockData();
+      res.json({ success: true, message: "Mock data seeded successfully" });
+    } catch (error) {
+      console.error("Error seeding mock data:", error);
+      res.status(500).json({ success: false, message: "Failed to seed mock data" });
+    }
+  });
 
   app.use((err: any, _req: any, res: any, _next: any) => {
     const status = err.status || err.statusCode || 500;
