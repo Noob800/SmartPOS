@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Store, Receipt, DollarSign, Cloud, Shield, Database } from "lucide-react";
+import { Settings, Store, Receipt, DollarSign, Cloud, Shield } from "lucide-react";
 
 interface SettingField {
   key: string;
@@ -156,37 +156,6 @@ const SettingsSection = () => {
       toast({
         title: "System Check Failed",
         description: "Unable to verify system status.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSeedMockData = async () => {
-    setIsLoading(true);
-    try {
-      const response = await apiRequest("POST", "/api/seed-mock-data", {});
-      const result = await response.json();
-      
-      if (result.success) {
-        toast({
-          title: "Mock Data Seeded",
-          description: "All mock data has been successfully seeded into the database. Please refresh the page to see the changes.",
-        });
-        
-        // Invalidate all queries to refresh data
-        setTimeout(() => {
-          queryClient.invalidateQueries();
-          window.location.reload();
-        }, 2000);
-      } else {
-        throw new Error(result.message || "Failed to seed mock data");
-      }
-    } catch (error) {
-      toast({
-        title: "Seeding Failed",
-        description: error instanceof Error ? error.message : "Failed to seed mock data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -466,51 +435,6 @@ const SettingsSection = () => {
                 <div className="text-sm text-gray-500">Check system health</div>
               </div>
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Developer Tools Section */}
-      <Card className="border-orange-200 bg-orange-50/50">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-orange-700">
-            <Database className="w-5 h-5" />
-            <span>Developer Tools</span>
-          </CardTitle>
-          <p className="text-sm text-orange-600">
-            ⚠️ These tools are for development and testing purposes only. Use with caution.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-orange-200">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <Label className="text-base font-semibold text-gray-900">
-                  Seed Mock Data
-                </Label>
-                <p className="text-sm text-gray-600 mt-1">
-                  Populate the database with sample data including users, products, sales, and accounting entries. 
-                  This will clear all existing data first.
-                </p>
-              </div>
-              <Button 
-                onClick={handleSeedMockData}
-                disabled={isLoading}
-                className="ml-4 bg-orange-600 hover:bg-orange-700"
-              >
-                {isLoading ? "Seeding..." : "Seed Data"}
-              </Button>
-            </div>
-          </div>
-          
-          <div className="text-xs text-gray-500 space-y-1">
-            <p>✓ 5 Users (3 active cashiers, 2 admins)</p>
-            <p>✓ 50 Products across multiple categories</p>
-            <p>✓ ~100 Sales transactions with items</p>
-            <p>✓ 20 Stock adjustments</p>
-            <p>✓ Complete chart of accounts</p>
-            <p>✓ Journal entries with double-entry bookkeeping</p>
-            <p>✓ System settings configured</p>
           </div>
         </CardContent>
       </Card>
