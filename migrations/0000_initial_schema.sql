@@ -107,16 +107,27 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Add foreign key constraints
-ALTER TABLE sales ADD CONSTRAINT fk_sales_user FOREIGN KEY (user_id) REFERENCES users(id);
-ALTER TABLE sale_items ADD CONSTRAINT fk_sale_items_sale FOREIGN KEY (sale_id) REFERENCES sales(id);
-ALTER TABLE sale_items ADD CONSTRAINT fk_sale_items_product FOREIGN KEY (product_id) REFERENCES products(id);
-ALTER TABLE stock_adjustments ADD CONSTRAINT fk_stock_adjustments_product FOREIGN KEY (product_id) REFERENCES products(id);
-ALTER TABLE stock_adjustments ADD CONSTRAINT fk_stock_adjustments_user FOREIGN KEY (user_id) REFERENCES users(id);
-ALTER TABLE accounts ADD CONSTRAINT fk_accounts_parent FOREIGN KEY (parent_account_id) REFERENCES accounts(id);
-ALTER TABLE journal_entries ADD CONSTRAINT fk_journal_entries_user FOREIGN KEY (user_id) REFERENCES users(id);
-ALTER TABLE ledger_entries ADD CONSTRAINT fk_ledger_entries_journal FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id);
-ALTER TABLE ledger_entries ADD CONSTRAINT fk_ledger_entries_account FOREIGN KEY (account_id) REFERENCES accounts(id);
+-- Add foreign key constraints with cascade rules
+ALTER TABLE sales ADD CONSTRAINT fk_sales_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;
+ALTER TABLE sale_items ADD CONSTRAINT fk_sale_items_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE;
+ALTER TABLE sale_items ADD CONSTRAINT fk_sale_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE stock_adjustments ADD CONSTRAINT fk_stock_adjustments_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE stock_adjustments ADD CONSTRAINT fk_stock_adjustments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;
+ALTER TABLE accounts ADD CONSTRAINT fk_accounts_parent FOREIGN KEY (parent_account_id) REFERENCES accounts(id) ON DELETE RESTRICT;
+ALTER TABLE journal_entries ADD CONSTRAINT fk_journal_entries_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;
+ALTER TABLE ledger_entries ADD CONSTRAINT fk_ledger_entries_journal FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE;
+ALTER TABLE ledger_entries ADD CONSTRAINT fk_ledger_entries_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT;
+
+-- Add check constraints for data validation
+ALTER TABLE products ADD CONSTRAINT chk_products_price_positive CHECK (price >= 0);
+ALTER TABLE products ADD CONSTRAINT chk_products_cost_positive CHECK (cost_price >= 0);
+ALTER TABLE products ADD CONSTRAINT chk_products_stock_non_negative CHECK (stock >= 0);
+ALTER TABLE sale_items ADD CONSTRAINT chk_sale_items_quantity_positive CHECK (quantity > 0);
+ALTER TABLE sale_items ADD CONSTRAINT chk_sale_items_price_positive CHECK (unit_price >= 0);
+ALTER TABLE stock_adjustments ADD CONSTRAINT chk_stock_adjustments_quantity_non_zero CHECK (quantity != 0);
+ALTER TABLE ledger_entries ADD CONSTRAINT chk_ledger_entries_debit_credit CHECK (
+  (debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0)
+);
 
 -- Create indexes for better performance
 CREATE INDEX idx_sales_user_id ON sales(user_id);
