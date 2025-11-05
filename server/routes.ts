@@ -153,32 +153,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sale, items } = req.body;
       const saleData = insertSaleSchema.parse(sale);
 
+      // Validate that all products exist and have sufficient stock before proceeding
+      let totalCostOfGoodsSold = 0;
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Product ${item.productId} not found` });
+        }
+        if (product.stock < item.quantity) {
+          return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
+        }
+        totalCostOfGoodsSold += parseFloat(product.costPrice) * item.quantity;
+      }
+
       // Create the sale
       const createdSale = await storage.createSale(saleData);
 
-      // Calculate total cost of goods sold
-      let totalCostOfGoodsSold = 0;
-
       // Create sale items and update stock
-      for (const item of items) {
-        const saleItemData = insertSaleItemSchema.parse({
-          ...item,
-          saleId: createdSale.id
-        });
-        await storage.createSaleItem(saleItemData);
-
-        // Update product stock
-        const product = await storage.getProduct(item.productId);
-        if (product) {
-          await storage.updateProduct(product.id, {
-            stock: product.stock - item.quantity
-          });
-          totalCostOfGoodsSold += parseFloat(product.costPrice) * item.quantity;
-        }
-      }
-
-      // Create accounting journal entry for the sale
       try {
+        for (const item of items) {
+          const saleItemData = insertSaleItemSchema.parse({
+            ...item,
+            saleId: createdSale.id
+          });
+          await storage.createSaleItem(saleItemData);
+
+          // Update product stock
+          const product = await storage.getProduct(item.productId);
+          if (product) {
+            await storage.updateProduct(product.id, {
+              stock: product.stock - item.quantity
+            });
+          }
+        }
+
+        // Create accounting journal entry for the sale
+        // NOTE: In production, this should be wrapped in a database transaction with the sale creation
         await accountingService.recordSale({
           saleId: createdSale.id,
           userId: createdSale.userId,
@@ -186,13 +196,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           costOfGoodsSold: totalCostOfGoodsSold.toFixed(2),
           paymentMethod: createdSale.paymentMethod,
         });
-      } catch (accountingError) {
-        console.error("Failed to record accounting entry for sale:", accountingError);
-      }
 
-      res.json(createdSale);
+        res.json(createdSale);
+      } catch (error) {
+        // If accounting or inventory update fails after sale creation, log the error
+        console.error("CRITICAL: Sale created but post-processing failed:", {
+          saleId: createdSale.id,
+          error: error instanceof Error ? error.message : error
+        });
+        
+        // Update sale status to indicate issue
+        await storage.updateSaleStatus(createdSale.id, "held");
+        
+        return res.status(500).json({ 
+          message: "Sale created but processing incomplete. Please contact support.",
+          saleId: createdSale.id
+        });
+      }
     } catch (error) {
-      res.status(400).json({ message: "Invalid sale data" });
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid sale data", errors: error.errors });
+      }
+      console.error("Error creating sale:", error);
+      res.status(500).json({ message: "Failed to create sale" });
     }
   });
 
@@ -547,7 +573,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const entry = await accountingService.createJournalEntry(entryData);
+      const entry = await accountingService.createJournalEntry({
+        ...entryData,
+        entryDate: entryData.entryDate ? new Date(entryData.entryDate) : undefined,
+      });
       res.json(entry);
     } catch (error: any) {
       if (error instanceof ZodError) {
