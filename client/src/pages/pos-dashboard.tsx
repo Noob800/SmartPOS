@@ -7,6 +7,8 @@ import InventorySection from "@/components/pos/inventory-section";
 import ReportsSection from "@/components/pos/reports-section";
 import UsersSection from "@/components/pos/users-section";
 import SettingsSection from "@/components/pos/settings-section";
+import FinanceManagerSection from "@/components/pos/finance-manager-section";
+import AccountingSection from "@/components/pos/accounting-section";
 import PaymentModal from "@/components/pos/payment-modal";
 import ReceiptModal from "@/components/pos/receipt-modal";
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,9 @@ import {
   X,
   Shield,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  DollarSign,
+  BookOpen
 } from "lucide-react";
 
 const POSDashboard = () => {
@@ -104,6 +108,18 @@ const POSDashboard = () => {
       requiresAdmin: true
     },
     {
+      id: "finance",
+      label: "Finance Manager",
+      icon: <DollarSign className="w-5 h-5" />,
+      requiresAdmin: true
+    },
+    {
+      id: "accounting",
+      label: "Accounting",
+      icon: <BookOpen className="w-5 h-5" />,
+      requiresAdmin: true
+    },
+    {
       id: "users",
       label: "Users",
       icon: <Users className="w-5 h-5" />,
@@ -125,6 +141,10 @@ const POSDashboard = () => {
         return isAdmin ? <InventorySection /> : <UnauthorizedAccess />;
       case "reports":
         return isAdmin ? <ReportsSection /> : <UnauthorizedAccess />;
+      case "finance":
+        return isAdmin ? <FinanceManagerSection /> : <UnauthorizedAccess />;
+      case "accounting":
+        return isAdmin ? <AccountingSection /> : <UnauthorizedAccess />;
       case "users":
         return isAdmin ? <UsersSection /> : <UnauthorizedAccess />;
       case "settings":

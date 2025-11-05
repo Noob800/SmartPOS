@@ -63,6 +63,44 @@ export const settings = pgTable("settings", {
   value: text("value").notNull(),
 });
 
+export const accounts = pgTable("accounts", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'asset' | 'liability' | 'equity' | 'revenue' | 'expense'
+  subtype: text("subtype"), // 'current_asset' | 'fixed_asset' | 'current_liability' | 'long_term_liability' | 'operating_expense' | 'cogs'
+  normalBalance: text("normal_balance").notNull(), // 'debit' | 'credit'
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  isSystem: boolean("is_system").notNull().default(false),
+  parentAccountId: integer("parent_account_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const journalEntries = pgTable("journal_entries", {
+  id: serial("id").primaryKey(),
+  entryNumber: text("entry_number").notNull().unique(),
+  entryDate: timestamp("entry_date").notNull().defaultNow(),
+  description: text("description").notNull(),
+  referenceType: text("reference_type"), // 'sale' | 'purchase' | 'payment' | 'adjustment' | 'opening_balance' | 'manual'
+  referenceId: integer("reference_id"),
+  userId: integer("user_id").notNull(),
+  status: text("status").notNull().default("posted"), // 'draft' | 'posted' | 'void'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const ledgerEntries = pgTable("ledger_entries", {
+  id: serial("id").primaryKey(),
+  journalEntryId: integer("journal_entry_id").notNull(),
+  accountId: integer("account_id").notNull(),
+  debit: decimal("debit", { precision: 15, scale: 2 }).notNull().default("0.00"),
+  credit: decimal("credit", { precision: 15, scale: 2 }).notNull().default("0.00"),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -93,6 +131,37 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
   id: true,
 });
 
+export const insertAccountSchema = createInsertSchema(accounts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertJournalEntrySchema = createInsertSchema(journalEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLedgerEntrySchema = createInsertSchema(ledgerEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const createJournalEntrySchema = z.object({
+  description: z.string().min(1, "Description is required"),
+  entryDate: z.string().datetime().optional(),
+  referenceType: z.string().optional(),
+  referenceId: z.number().optional(),
+  userId: z.number(),
+  notes: z.string().optional(),
+  entries: z.array(z.object({
+    accountId: z.number(),
+    debit: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid debit amount"),
+    credit: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid credit amount"),
+    description: z.string().optional(),
+  })).min(2, "At least 2 entries required"),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -111,6 +180,15 @@ export type InsertStockAdjustment = z.infer<typeof insertStockAdjustmentSchema>;
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
+
+export type Account = typeof accounts.$inferSelect;
+export type InsertAccount = z.infer<typeof insertAccountSchema>;
+
+export type JournalEntry = typeof journalEntries.$inferSelect;
+export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
+
+export type LedgerEntry = typeof ledgerEntries.$inferSelect;
+export type InsertLedgerEntry = z.infer<typeof insertLedgerEntrySchema>;
 
 // Cart item type for frontend
 export type CartItem = {

@@ -7,6 +7,7 @@ import {
   type InsertStockAdjustment, type InsertSetting
 } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { accountingService } from "./accounting";
 
 class Storage {
   async initializeData() {
@@ -75,6 +76,9 @@ class Storage {
     await this.setSetting("tax_rate", "16");
     await this.setSetting("receipt_header", "Thank you for shopping with us!\nVisit again soon.");
     await this.setSetting("receipt_footer", "For support: +254 700 123456\nwww.minimartexpress.co.ke");
+
+    // Initialize chart of accounts
+    await accountingService.initializeChartOfAccounts();
   }
 
   // User methods

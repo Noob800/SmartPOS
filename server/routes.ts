@@ -1,10 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { accountingService } from "./accounting";
 import { 
   insertUserSchema, insertProductSchema, insertSaleSchema, 
-  insertSaleItemSchema, insertStockAdjustmentSchema, insertSettingSchema 
+  insertSaleItemSchema, insertStockAdjustmentSchema, insertSettingSchema,
+  insertAccountSchema, createJournalEntrySchema
 } from "@shared/schema";
+import { ZodError } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize storage with default data
@@ -153,6 +156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the sale
       const createdSale = await storage.createSale(saleData);
 
+      // Calculate total cost of goods sold
+      let totalCostOfGoodsSold = 0;
+
       // Create sale items and update stock
       for (const item of items) {
         const saleItemData = insertSaleItemSchema.parse({
@@ -167,7 +173,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateProduct(product.id, {
             stock: product.stock - item.quantity
           });
+          totalCostOfGoodsSold += parseFloat(product.costPrice) * item.quantity;
         }
+      }
+
+      // Create accounting journal entry for the sale
+      try {
+        await accountingService.recordSale({
+          saleId: createdSale.id,
+          userId: createdSale.userId,
+          total: createdSale.total,
+          costOfGoodsSold: totalCostOfGoodsSold.toFixed(2),
+          paymentMethod: createdSale.paymentMethod,
+        });
+      } catch (accountingError) {
+        console.error("Failed to record accounting entry for sale:", accountingError);
       }
 
       res.json(createdSale);
@@ -397,6 +417,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSales,
         totalTransactions,
         averageTransaction: totalTransactions > 0 ? totalSales / totalTransactions : 0,
+        period: { startDate: start, endDate: end }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Accounting routes
+  app.get("/api/accounting/accounts", async (req, res) => {
+    try {
+      const { type } = req.query;
+      let accounts;
+      
+      if (type) {
+        accounts = await accountingService.getAccountsByType(type as string);
+      } else {
+        accounts = await accountingService.getAllAccounts();
+      }
+      
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/accounting/accounts", async (req, res) => {
+    try {
+      const accountData = insertAccountSchema.parse(req.body);
+      const account = await accountingService.createAccount(accountData);
+      res.json(account);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid account data", errors: error.errors });
+      }
+      console.error("Error creating account:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  app.put("/api/accounting/accounts/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const account = await accountingService.updateAccount(id, req.body);
+      
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      res.json(account);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/accounts/:id/balance", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const balance = await accountingService.getAccountBalance(id);
+      res.json(balance);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/accounts/:id/ledger", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { startDate, endDate } = req.query;
+      
+      const ledger = await accountingService.getAccountLedger(
+        id,
+        startDate ? new Date(startDate as string) : undefined,
+        endDate ? new Date(endDate as string) : undefined
+      );
+      
+      res.json(ledger);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/journal-entries", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      const entries = await accountingService.getJournalEntries(
+        startDate ? new Date(startDate as string) : undefined,
+        endDate ? new Date(endDate as string) : undefined
+      );
+      
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/journal-entries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await accountingService.getJournalEntry(id);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      const ledgerEntries = await accountingService.getLedgerEntries(id);
+      
+      res.json({
+        ...entry,
+        ledgerEntries
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/accounting/journal-entries", async (req, res) => {
+    try {
+      const entryData = createJournalEntrySchema.parse(req.body);
+      
+      const totalDebits = entryData.entries.reduce((sum, e) => sum + parseFloat(e.debit), 0);
+      const totalCredits = entryData.entries.reduce((sum, e) => sum + parseFloat(e.credit), 0);
+      
+      if (Math.abs(totalDebits - totalCredits) >= 0.01) {
+        return res.status(400).json({ 
+          message: "Journal entry not balanced",
+          details: { debits: totalDebits, credits: totalCredits }
+        });
+      }
+      
+      const entry = await accountingService.createJournalEntry(entryData);
+      res.json(entry);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid journal entry data", errors: error.errors });
+      }
+      console.error("Error creating journal entry:", error);
+      res.status(400).json({ message: error.message || "Failed to create journal entry" });
+    }
+  });
+
+  app.delete("/api/accounting/journal-entries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await accountingService.voidJournalEntry(id);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/reports/profit-loss", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : new Date(new Date().getFullYear(), 0, 1);
+      const end = endDate ? new Date(endDate as string) : new Date();
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      const report = await accountingService.generateProfitAndLoss(start, end);
+      
+      res.json({
+        ...report,
+        period: { startDate: start, endDate: end }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/reports/balance-sheet", async (req, res) => {
+    try {
+      const { asOfDate } = req.query;
+      const date = asOfDate ? new Date(asOfDate as string) : new Date();
+      date.setHours(23, 59, 59, 999);
+
+      const report = await accountingService.generateBalanceSheet(date);
+      
+      res.json({
+        ...report,
+        asOfDate: date
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/accounting/reports/cash-flow", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : new Date(new Date().getFullYear(), 0, 1);
+      const end = endDate ? new Date(endDate as string) : new Date();
+
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      const report = await accountingService.generateCashFlowStatement(start, end);
+      
+      res.json({
+        ...report,
         period: { startDate: start, endDate: end }
       });
     } catch (error) {
